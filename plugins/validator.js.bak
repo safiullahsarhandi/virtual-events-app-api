@@ -1,0 +1,26 @@
+"use strict";
+
+const fp = require("fastify-plugin");
+
+const { JoiAttributeSchema } = require("../validations/Schema/Attribute");
+
+module.exports = fp(function validate(fastify, opts, done) {
+  // ATTRIBUTE VALIDATION
+  fastify.decorate("validate_attribute", async (req, res, next) => {
+    try {
+      const { name, attribute_values, status } = req.body;
+      await JoiAttributeSchema.validateAsync({
+        name,
+        attribute_values,
+        status,
+      });
+      next();
+    } catch (err) {
+      return res.code(500).send({
+        message: err.toString(),
+      });
+    }
+  });
+
+  done();
+});
