@@ -1,11 +1,17 @@
 const moment = require("moment");
 
 const Auth = require("../models/Auth");
+const User = require("../models/User");
 const Reset = require("../models/Reset");
 const Notification = require("../models/Notification");
 
 exports.getUserForAuth = async (email) =>
-  await Auth.findOne({ email: email.toLowerCase() }).populate("admin_auth");
+  await Auth.findOne({ email: email.toLowerCase() }).populate(
+    "admin_auth user_auth"
+  );
+
+exports.getUserForProfile = async (id) =>
+  await User.findById(id).populate("auth", "email").lean();
 
 exports.updatePassword = async (user, updated_data) =>
   await Auth.findByIdAndUpdate(user, updated_data);

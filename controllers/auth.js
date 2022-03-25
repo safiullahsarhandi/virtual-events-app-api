@@ -1,4 +1,5 @@
 const Auth = require("../models/Auth");
+const User = require("../models/User");
 const Admin = require("../models/Admin");
 
 const { generateEmail } = require("../services/generate_email");
@@ -12,9 +13,10 @@ const {
   comparePassword,
 } = require("../validations");
 const {
+  validateCode,
   getUserForAuth,
   createResetToken,
-  validateCode,
+  getUserForProfile,
 } = require("../queries");
 const { delete_file } = require("../services/delete_file");
 
@@ -92,6 +94,91 @@ exports.loginAdmin = async (req, res) => {
     await res.code(200).send({
       message: "Admin Logged In",
       token,
+    });
+  } catch (err) {
+    console.log(err);
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+// @USER APIs
+exports.registerUser = async (req, res) => {
+  const session = await Auth.startSession();
+  session.startTransaction();
+  try {
+    const opts = { session };
+    const { name, email: _email, password, phone } = req.body;
+    const email = validateEmail(_email);
+
+    if (!email) throw new Error("Invalid Email Address");
+
+    if (await userExists(email)) throw new Error("Email Already Registered");
+
+    const user_image =
+      req.files &&
+      req.files.user_image &&
+      req.files.user_image[0] &&
+      req.files.user_image[0].path;
+
+    const auth = new Auth({
+      email,
+      password: await generateHash(password),
+    });
+
+    const user = new User({
+      name,
+      phone,
+      auth: auth._id,
+      user_image,
+      status: true,
+    });
+
+    auth.user = user._id;
+
+    await user.save(opts);
+    await auth.save(opts);
+
+    await session.commitTransaction(opts);
+    session.endSession(opts);
+
+    await res.code(201).send({
+      message: "Registered Successfully",
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    const user_image =
+      req.files &&
+      req.files.user_image &&
+      req.files.user_image[0] &&
+      req.files.user_image[0].path;
+    if (user_image) delete_file(user_image);
+    console.log(err);
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+exports.loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await getUserForAuth(email);
+    if (!user) throw new Error("Invlaid Email/Password");
+    const isEqual = await verifyPassword(password, user.password);
+    if (!isEqual) throw new Error("Invlaid Email/Password");
+    const token = await generateToken(
+      user.email,
+      user.user_auth._id,
+      process.env.JWT_SECRET,
+      { is_user: true }
+    );
+    await res.code(200).send({
+      message: "User Logged In",
+      token,
+      user: await getUserForProfile(user.user_auth._id),
     });
   } catch (err) {
     console.log(err);

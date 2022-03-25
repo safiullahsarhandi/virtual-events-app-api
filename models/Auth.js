@@ -26,11 +26,11 @@ authSchema.virtual("admin_auth", {
   justOne: true,
 });
 
-// authSchema.virtual("user_auth", {
-//   ref: "User",
-//   localField: "user",
-//   foreignField: "_id",
-//   justOne: true,
-// });
+authSchema.virtual("user_auth", {
+  ref: "User",
+  localField: "user",
+  foreignField: "_id",
+  justOne: true,
+});
 
 module.exports = mongoose.model("Auth", authSchema);
