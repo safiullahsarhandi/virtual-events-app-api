@@ -13,7 +13,7 @@ exports.me = async (req, res) => {
       })
       .lean();
     await res.code(200).send({
-      user: admin,
+      admin,
     });
   } catch (err) {
     console.log(err);

@@ -115,7 +115,7 @@ exports.recoverPassword = async (req, res) => {
     \n\n Your verification status is ${status}:\n\n
     \n\n If you did not request this, please ignore this email and your password will remain unchanged.           
     </p>`;
-    await generateEmail(email, "Superior Run - Password Reset", html);
+    await generateEmail(email, "Could You Tell - Password Reset", html);
     return res.code(201).send({
       message:
         "Recovery Code Has Been Emailed To Your Registered Email Address",
