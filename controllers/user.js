@@ -101,6 +101,7 @@ exports.userDetails = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
       .populate("auth", "email")
+      .populate("subscription")
       .lean();
     await res.code(200).send({
       user,
