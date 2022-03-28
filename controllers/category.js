@@ -4,6 +4,7 @@ const Category = require("../models/Category");
 const SubCategory = require("../models/SubCategory");
 
 const { delete_file } = require("../services/delete_file");
+const { convertToLabelValue } = require("../mapping/labelValue");
 
 exports.addCategory = async (req, res) => {
   const session = await Category.startSession();
@@ -223,6 +224,45 @@ exports.updateCategory = async (req, res) => {
 
     if (category_image) delete_file(category_image);
 
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+exports.searchCategory = async (req, res) => {
+  try {
+    const searchParam = req.query.searchString
+      ? { name: { $regex: `${req.query.searchString}`, $options: "i" } }
+      : {};
+    let categories;
+    if (!req.query.searchString) {
+      categories = await Category.paginate(
+        {
+          status: true,
+        },
+        {
+          page: 1,
+          limit: 10,
+          lean: true,
+          select: "name",
+        }
+      );
+      categories = categories.docs;
+    } else {
+      categories = await Category.find({
+        status: true,
+        ...searchParam,
+      })
+        .select("name")
+        .lean();
+    }
+    categories = convertToLabelValue(categories, "_id", "name");
+
+    await res.code(200).send({
+      categories,
+    });
+  } catch (err) {
     res.code(500).send({
       message: err.toString(),
     });

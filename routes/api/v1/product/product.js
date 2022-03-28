@@ -4,28 +4,27 @@ const multer = require("fastify-multer");
 const { storage, fileFilter } = require("../../../../multer");
 
 const upload = multer({ storage, fileFilter });
-const images = upload.fields([{ name: "category_image", maxCount: 1 }]);
+const images = upload.fields([{ name: "product_image", maxCount: 10 }]);
 
 const {
-  addCategory,
-  logs,
+  addProduct,
   changeStatus,
-  get,
-  updateCategory,
-  searchCategory,
-} = require("../../../../controllers/category");
+  getProductDetails,
+  logs,
+  updateProduct,
+} = require("../../../../controllers/product");
 
 module.exports = async function (fastify, opts) {
   //@ADMIN ROUTES
   fastify.post(
     "/admin/add",
     { preHandler: [images, fastify.authenticate_admin] },
-    addCategory
+    addProduct
   );
   fastify.post(
     "/admin/edit",
     { preHandler: [images, fastify.authenticate_admin] },
-    updateCategory
+    updateProduct
   );
   fastify.get(
     "/admin/logs",
@@ -37,14 +36,7 @@ module.exports = async function (fastify, opts) {
     { preHandler: [fastify.authenticate_admin] },
     changeStatus
   );
-  fastify.get(
-    "/admin/get/:id",
-    { preHandler: [fastify.authenticate_admin] },
-    get
-  );
-  fastify.get(
-    "/admin/search",
-    { preHandler: [fastify.authenticate_admin] },
-    searchCategory
-  );
+
+  // @GENERAL
+  fastify.get("/details/:id", getProductDetails);
 };
