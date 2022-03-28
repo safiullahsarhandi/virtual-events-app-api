@@ -1,6 +1,7 @@
 const moment = require("moment");
 
 const Product = require("../models/Product");
+const { ratingsBreakdown } = require("../services/calculate_avg_ratings");
 
 const { delete_file } = require("../services/delete_file");
 
@@ -176,8 +177,10 @@ exports.getProductDetails = async (req, res) => {
       path: "category",
       select: "name",
     });
+    const ratings = await ratingsBreakdown(product._id);
     await res.code(200).send({
       product,
+      ratings,
     });
   } catch (err) {
     res.code(500).send({
