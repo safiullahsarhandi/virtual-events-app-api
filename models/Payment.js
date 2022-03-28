@@ -13,7 +13,12 @@ const paymentSchema = new Schema(
     subscription: {
       type: Schema.Types.ObjectId,
       ref: "Subscription",
-      required: true,
+      required: false,
+    },
+    order: {
+      type: Schema.Types.ObjectId,
+      ref: "Order",
+      required: false,
     },
     amount: {
       type: Number,
