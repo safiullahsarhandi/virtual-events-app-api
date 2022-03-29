@@ -25,7 +25,7 @@ exports.add = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id, name, status } = req.body;
-    const sub_category = await SubCategory.find(id);
+    const sub_category = await SubCategory.findById(id);
     sub_category.name = name;
     sub_category.status = status;
 

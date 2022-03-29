@@ -191,9 +191,6 @@ exports.updateCategory = async (req, res) => {
       (value) => !sub_categories.includes(value)
     );
 
-    console.log("filteredArray: ", filteredArray);
-    console.log("other: ", sub_categories, old_sub_categories);
-
     await Promise.all(
       filteredArray.map(async (sub_category) => {
         const used_sub = await SubCategory.findById(sub_category);
