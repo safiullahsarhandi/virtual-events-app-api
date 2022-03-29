@@ -1,3 +1,5 @@
+const moment = require("moment");
+
 const User = require("../models/User");
 const Order = require("../models/Order");
 const Payment = require("../models/Payment");
@@ -49,6 +51,7 @@ exports.createOrder = async (req, res) => {
       );
 
       delete product.attributes;
+      delete main_attr.attribute_values;
 
       sub_total = product.price * quantity + sub_total + (sub_attr.price || 0);
 
@@ -58,6 +61,7 @@ exports.createOrder = async (req, res) => {
         },
         quantity,
         sub_attr,
+        main_attr,
       };
     });
 
@@ -131,6 +135,133 @@ exports.createOrder = async (req, res) => {
       await refundPayment(charge_id, total_global);
     }
 
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+exports.logs = async (req, res) => {
+  try {
+    const searchParam = req.query.searchString
+      ? { $text: { $search: req.query.searchString } }
+      : {};
+    const from = req.query.from ? req.query.from : null;
+    const to = req.query.to ? req.query.to : null;
+    let dateFilter = {};
+    if (from && to)
+      dateFilter = {
+        createdAt: {
+          $gte: moment(new Date(from)).startOf("day"),
+          $lte: moment(new Date(to)).endOf("day"),
+        },
+      };
+    const status_filter = req.query.status
+      ? { order_status: req.query.status }
+      : {};
+    const user_filter = req.user.scope.is_user
+      ? {
+          user_id: req.user.userId,
+        }
+      : {};
+    const user_filter_admin = req.query.user ? { user_id: req.query.user } : {};
+    const logs = await Order.paginate(
+      {
+        ...searchParam,
+        ...dateFilter,
+        ...status_filter,
+        ...user_filter_admin,
+        ...user_filter,
+      },
+      {
+        page: req.query.page,
+        limit: req.query.perPage,
+        lean: true,
+        sort: "-updatedAt",
+        select: "name price_info order_status createdAt billing_address",
+      }
+    );
+    await res.code(200).send({
+      logs,
+    });
+  } catch (err) {
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+exports.changeOrderStatus = async (req, res) => {
+  const session = await Order.startSession();
+  session.startTransaction();
+  try {
+    const opts = { session };
+    const { status, id } = req.body;
+    if (
+      status !== "Pending" &&
+      status !== "In Process" &&
+      status !== "Delivered" &&
+      status !== "Refunded"
+    ) {
+      return res.code(400).send({
+        message: "Invalid Status",
+        accepted: ["Pending", "In Process", "Delivered", "Refunded"],
+      });
+    }
+    const order = await Order.findById(id);
+    if (!order) return res.code(400).send({ message: "Invalid Order" });
+    if (status === "Refunded") {
+      const payment = await Payment.findOne({
+        order: order._id,
+      });
+      const refund_object = await refundPayment(
+        payment.charge_object.id,
+        order.price_info.total
+      );
+      payment.refund_object = refund_object;
+      payment.payment_status = "Refunded";
+      await payment.save(opts);
+    }
+    order.order_status = status;
+    await order.save(opts);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    await res.code(201).send({
+      message:
+        status === "Refunded" ? "Order Refunded" : "Order Status Updated",
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.log(err);
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+exports.orderDetails = async (req, res) => {
+  try {
+    let order = await Order.findOne({
+      _id: req.params.id,
+    })
+      .lean()
+      .populate({
+        path: "user",
+        select: "name auth",
+        populate: {
+          path: "auth",
+          select: "email",
+        },
+      });
+
+    await res.code(200).send({
+      order,
+    });
+  } catch (err) {
+    console.log(err);
     res.code(500).send({
       message: err.toString(),
     });

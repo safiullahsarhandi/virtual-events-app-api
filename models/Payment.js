@@ -32,6 +32,10 @@ const paymentSchema = new Schema(
       type: Object,
       required: true,
     },
+    refund_object: {
+      type: Object,
+      required: true,
+    },
     payment_status: {
       type: String,
       required: true,

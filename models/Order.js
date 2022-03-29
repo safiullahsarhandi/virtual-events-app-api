@@ -110,6 +110,7 @@ const orderSchema = new Schema(
           required: true,
         },
         sub_attr: Object,
+        main_attr: Object,
       },
     ],
     price_info: {
@@ -135,5 +136,10 @@ const orderSchema = new Schema(
 );
 
 orderSchema.plugin(mongoosePaginate);
+// TEXT SEARCH IS NOT BEING APPLIED IN THE REPLICATION MONGODB INSTANCE
+// INDEX IS NOT BEING CREATED.
+// REPORT THIS ISSUE TO DEVOPS AND HOPE THEY FIX IT
+// SEARCH WILL WORK ONCE THE INDEX HAS BEEN CREATED
+orderSchema.index({ "$**": "text" });
 
 module.exports = mongoose.model("Order", orderSchema);
