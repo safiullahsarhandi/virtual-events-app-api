@@ -142,10 +142,17 @@ exports.logs = async (req, res) => {
         },
       };
 
+    const user_filter = req.query.user
+      ? {
+          user: req.query.user,
+        }
+      : {};
+
     const logs = await Subscription.paginate(
       {
         ...dateFilter,
         ...searchParam,
+        ...user_filter,
       },
       {
         page: req.query.page,
