@@ -2,6 +2,7 @@ const moment = require("moment");
 
 const Auth = require("../models/Auth");
 const User = require("../models/User");
+const Event = require("../models/Event");
 const Reset = require("../models/Reset");
 const Payment = require("../models/Payment");
 const Notification = require("../models/Notification");
@@ -104,6 +105,7 @@ exports.earningGraph = async (year) => {
             $gte: start_date,
             $lte: end_date,
           },
+          payment_status: "Payment Completed",
         },
       },
       {
@@ -135,6 +137,56 @@ exports.earningGraph = async (year) => {
     const subscription_data = await Payment.aggregate(query);
     subscription_data.forEach((data) => {
       if (data) arr[data.month - 1] = data.totalAmount;
+    });
+    return arr;
+  } catch (err) {
+    return err;
+  }
+};
+
+exports.eventGraph = async (year) => {
+  try {
+    const arr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const start_date = moment(year).startOf("year").toDate();
+    const end_date = moment(year).endOf("year").toDate();
+    const query = [
+      {
+        $match: {
+          createdAt: {
+            $gte: start_date,
+            $lte: end_date,
+          },
+        },
+      },
+      {
+        $addFields: {
+          date: {
+            $month: "$createdAt",
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$date",
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $addFields: {
+          month: "$_id",
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          month: 1,
+          count: 1,
+        },
+      },
+    ];
+    const event_data = await Event.aggregate(query);
+    event_data.forEach((data) => {
+      if (data) arr[data.month - 1] = data.count;
     });
     return arr;
   } catch (err) {
