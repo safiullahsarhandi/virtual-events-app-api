@@ -12,7 +12,7 @@ const eventCategory = new Schema(
       type: Number,
       required: true,
     },
-    onlySubscription: {
+    inclueSubscription: {
       type: Boolean,
       required: true,
     },

@@ -20,6 +20,11 @@ const paymentSchema = new Schema(
       ref: "Order",
       required: false,
     },
+    event: {
+      type: Schema.Types.ObjectId,
+      ref: "Event",
+      required: false,
+    },
     amount: {
       type: Number,
       required: true,
@@ -34,7 +39,7 @@ const paymentSchema = new Schema(
     },
     refund_object: {
       type: Object,
-      required: true,
+      required: false,
     },
     payment_status: {
       type: String,

@@ -1,15 +1,16 @@
 const moment = require("moment");
+const { convertToLabelValue } = require("../mapping/labelValue");
 
 const EventCategory = require("../models/EventCategory");
 
 exports.add = async (req, res) => {
   try {
-    const { name, cost, onlySubscription } = req.body;
+    const { name, cost, inclueSubscription } = req.body;
 
     const event_category = new EventCategory({
       name,
       cost,
-      onlySubscription,
+      inclueSubscription,
       status: true,
     });
 
@@ -27,11 +28,11 @@ exports.add = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const { id, name, cost, onlySubscription } = req.body;
+    const { id, name, cost, inclueSubscription } = req.body;
     const event_category = await EventCategory.findById(id);
     event_category.name = name;
     event_category.cost = cost;
-    event_category.onlySubscription = onlySubscription;
+    event_category.inclueSubscription = inclueSubscription;
 
     await event_category.save();
 
@@ -117,6 +118,42 @@ exports.get = async (req, res) => {
 
     await res.code(201).send({
       category,
+    });
+  } catch (err) {
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+exports.searchCategory = async (req, res) => {
+  try {
+    const searchParam = req.query.searchString
+      ? { name: { $regex: `${req.query.searchString}`, $options: "i" } }
+      : {};
+    let categories;
+    if (!req.query.searchString) {
+      categories = await EventCategory.paginate(
+        {},
+        {
+          page: 1,
+          limit: 10,
+          lean: true,
+          select: "name",
+        }
+      );
+      categories = categories.docs;
+    } else {
+      categories = await EventCategory.find({
+        ...searchParam,
+      })
+        .select("name")
+        .lean();
+    }
+    categories = convertToLabelValue(categories, "_id", "name");
+
+    await res.code(200).send({
+      categories,
     });
   } catch (err) {
     res.code(500).send({

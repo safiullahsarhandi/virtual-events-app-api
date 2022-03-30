@@ -6,6 +6,7 @@ const {
   logs,
   changeStatus,
   get,
+  searchCategory,
 } = require("../../../../controllers/eventCategory");
 
 module.exports = async function (fastify, opts) {
@@ -30,5 +31,10 @@ module.exports = async function (fastify, opts) {
     "/admin/get/:id",
     { preHandler: [fastify.authenticate_admin] },
     get
+  );
+  fastify.get(
+    "/admin/search",
+    { preHandler: [fastify.authenticate_admin] },
+    searchCategory
   );
 };
