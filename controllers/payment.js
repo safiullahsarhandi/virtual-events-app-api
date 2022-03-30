@@ -24,7 +24,14 @@ exports.logs = async (req, res) => {
             path: "order user",
             select: "order_status name",
           }
-        : {};
+        : {
+            path: "event user",
+            select: "name date time event_category",
+            populate: {
+              path: "event_category",
+              select: "name",
+            },
+          };
 
     const logs = await Payment.paginate(
       {
