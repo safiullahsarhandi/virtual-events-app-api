@@ -1,5 +1,6 @@
 const moment = require("moment");
 
+const Story = require("../models/Story");
 const StoryCategory = require("../models/StoryCategory");
 
 exports.add = async (req, res) => {
@@ -77,6 +78,14 @@ exports.logs = async (req, res) => {
         limit: req.query.perPage,
         lean: true,
       }
+    );
+
+    await Promise.all(
+      logs.docs.map(async (log) => {
+        log.no_stories = await Story.find({ category: log._id })
+          .select("_id")
+          .countDocuments();
+      })
     );
 
     await res.code(200).send({

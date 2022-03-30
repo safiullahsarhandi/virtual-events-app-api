@@ -1,6 +1,7 @@
 const moment = require("moment");
 const { convertToLabelValue } = require("../mapping/labelValue");
 
+const Event = require("../models/Event");
 const EventCategory = require("../models/EventCategory");
 
 exports.add = async (req, res) => {
@@ -81,6 +82,14 @@ exports.logs = async (req, res) => {
         limit: req.query.perPage,
         lean: true,
       }
+    );
+
+    await Promise.all(
+      logs.docs.map(async (log) => {
+        log.no_events = await Event.find({ event_category: log._id })
+          .select("_id")
+          .countDocuments();
+      })
     );
 
     await res.code(200).send({

@@ -1,5 +1,6 @@
 const moment = require("moment");
 
+const Product = require("../models/Product");
 const Category = require("../models/Category");
 const SubCategory = require("../models/SubCategory");
 
@@ -99,6 +100,14 @@ exports.logs = async (req, res) => {
         limit: req.query.perPage,
         lean: true,
       }
+    );
+
+    await Promise.all(
+      logs.docs.map(async (log) => {
+        log.no_products = await Product.find({ category: log._id })
+          .select("_id")
+          .countDocuments();
+      })
     );
 
     await res.code(200).send({
