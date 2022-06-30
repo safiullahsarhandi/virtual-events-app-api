@@ -11,7 +11,8 @@ const userSchema = new Schema(
     },
     user_image: {
       type: String,
-      required: true,
+      required: false,
+      get: (path)=> `${process.env.BASE_URL}/${path}`,
     },
     phone: {
       type: String,
@@ -37,7 +38,7 @@ const userSchema = new Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON : {getters : true}, toObject :{ getters : true,} }
 );
 
 userSchema.plugin(mongoosePaginate);

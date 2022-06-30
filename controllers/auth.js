@@ -144,19 +144,21 @@ exports.registerUser = async (req, res) => {
     session.endSession(opts);
 
     await res.code(201).send({
+      status : true,
       message: "Registered Successfully",
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
     const user_image =
-      req.files &&
-      req.files.user_image &&
+    req.files &&
+    req.files.user_image &&
       req.files.user_image[0] &&
       req.files.user_image[0].path;
-    if (user_image) delete_file(user_image);
-    console.log(err);
-    res.code(500).send({
+      if (user_image) delete_file(user_image);
+      console.log(err);
+      res.code(500).send({
+      status : false,
       message: err.toString(),
     });
   }
@@ -204,11 +206,13 @@ exports.recoverPassword = async (req, res) => {
     </p>`;
     await generateEmail(email, "Could You Tell - Password Reset", html);
     return res.code(201).send({
+      status : true,
       message:
         "Recovery Code Has Been Emailed To Your Registered Email Address",
     });
   } catch (err) {
     res.code(500).send({
+      status : false,
       message: err.toString(),
     });
   }
@@ -220,10 +224,11 @@ exports.verifyRecoverCode = async (req, res) => {
     const email = validateEmail(_email);
     if (!email) throw new Error("Invalid Email Address");
     if (await validateCode(code, email))
-      return res.code(200).send({ message: "Recovery Code Accepted" });
+      return res.code(200).send({ status : true, message: "Recovery Code Accepted" });
     else throw new Error("Invalid Recovery Code");
   } catch (err) {
     res.code(500).send({
+      status : false,
       message: err.toString(),
     });
   }
@@ -242,10 +247,12 @@ exports.resetPassword = async (req, res) => {
     user.password = await generateHash(password);
     await user.save();
     await res.code(201).send({
+      status : true,
       message: "Password Updated",
     });
   } catch (err) {
     res.code(500).send({
+      status : false,
       message: err.toString(),
     });
   }

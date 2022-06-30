@@ -170,3 +170,35 @@ exports.searchCategory = async (req, res) => {
     });
   }
 };
+
+
+exports.allEventCategories = async (req,res)=> {
+    try {
+        let categories = await EventCategory.where('status',true).exec();
+        res.send({
+          categories,
+        });
+    } catch (error) {
+        console.log(error)
+        res.code(500).send({
+          status : true,
+          message : error.toString(),
+        });
+    }
+};
+
+exports.getEventCategory = async (req,res)=> {
+  let {id} = req.params;
+  try {
+      let category = await EventCategory.findById(id).where('status',true).lean();
+      res.send({
+        category,
+      });
+  } catch (error) {
+      console.log(error)
+      res.code(500).send({
+        status : true,
+        message : error.toString(),
+      });
+  }
+};

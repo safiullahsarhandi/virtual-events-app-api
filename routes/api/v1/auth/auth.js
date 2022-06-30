@@ -4,7 +4,7 @@ const multer = require("fastify-multer");
 const { storage, fileFilter } = require("../../../../multer");
 
 const upload = multer({ storage, fileFilter });
-const images = upload.fields([{ name: "user_image", maxCount: 1 }]);
+const images = upload.fields([{ name: "user_image", maxCount: 0 }]);
 
 const {
   registerAdmin,
