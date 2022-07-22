@@ -1,6 +1,6 @@
 "use strict";
 
-const { subscribe, logs } = require("../../../../controllers/subscription");
+const { subscribe, logs,getPlans,getPlan } = require("../../../../controllers/subscription");
 
 module.exports = async function (fastify, opts) {
   // @USER ROUTES
@@ -15,5 +15,16 @@ module.exports = async function (fastify, opts) {
     "/admin/logs",
     { preHandler: [fastify.authenticate_admin] },
     logs
+  );
+
+  fastify.get(
+    "/all",
+    { preHandler: [fastify.authenticate] },
+    getPlans
+  );
+  fastify.get(
+    "/:id",
+    { preHandler: [fastify.authenticate] },
+    getPlan
   );
 };

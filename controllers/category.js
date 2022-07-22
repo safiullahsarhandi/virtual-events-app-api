@@ -3,6 +3,7 @@ const moment = require("moment");
 const Product = require("../models/Product");
 const Category = require("../models/Category");
 const SubCategory = require("../models/SubCategory");
+const StoryCategory = require("../models/StoryCategory");
 
 const { delete_file } = require("../services/delete_file");
 const { convertToLabelValue } = require("../mapping/labelValue");
@@ -264,6 +265,45 @@ exports.searchCategory = async (req, res) => {
         .lean();
     }
     categories = convertToLabelValue(categories, "_id", "name");
+
+    await res.code(200).send({
+      categories,
+    });
+  } catch (err) {
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+exports.allCategories = async (req,res)=> {
+  try {
+    const limit = req.query.entries? req.query.entries: 10;   
+    const currentPage = req.query.page? req.query.page: 1;   
+    const {docs,page, totalPages : total} = await Category.paginate({
+      status: true,
+    },{
+      page : currentPage,
+      limit, 
+    });
+
+    await res.code(200).send({
+      data : docs,
+      total,
+      currentPage : page,
+    });
+  } catch (err) {
+    res.code(500).send({
+      message: err.toString(),
+    });
+  }
+};
+
+
+
+exports.storyCategories = async (req,res)=> {
+  try {
+    const categories = await StoryCategory.find();
 
     await res.code(200).send({
       categories,

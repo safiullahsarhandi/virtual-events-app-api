@@ -1,3 +1,4 @@
+const { Types } = require("mongoose");
 const Story = require("../models/Story");
 const { delete_file } = require("../services/delete_file");
 
@@ -133,4 +134,34 @@ exports.storyDetails = async (req, res) => {
       message: err.toString(),
     });
   }
+};
+
+
+exports.all = async (req,res)=> {
+  let {page,limit,type,category} = req.query; 
+  page = page || 1;
+  limit = limit || 10;
+  let {docs : data , totalPages : total,pagingCounter : from} = await Story.paginate({
+    story_type : {$regex: type,$options: "i"},
+    category : Types.ObjectId(category),
+  },{
+    page,
+    limit : limit,
+  });
+
+  res.send({
+    data,
+    total,
+    currentPage : page,
+    from, 
+  });
+};
+
+
+exports.getStory = async (req,res)=> {
+  
+  let story = await Story.findById(req.params.id);
+  res.send({
+    story, 
+  });
 };

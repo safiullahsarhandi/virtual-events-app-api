@@ -25,7 +25,6 @@ authSchema.virtual("admin_auth", {
   foreignField: "_id",
   justOne: true,
 });
-
 authSchema.virtual("user_auth", {
   ref: "User",
   localField: "user",

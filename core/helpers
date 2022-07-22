@@ -1,0 +1,5 @@
+const ejs = require('ejs');
+const path = require('path');
+module.exports.view = (filePath,data = {})=> {
+    return ejs.renderFile(path.resolve(__dirname,`../views/${filePath}`),data);
+};

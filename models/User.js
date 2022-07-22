@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const mongoosePaginate = require("mongoose-paginate-v2");
+const Card = require("./Card");
 
 const userSchema = new Schema(
   {
@@ -38,8 +39,16 @@ const userSchema = new Schema(
       default: false,
     },
   },
-  { timestamps: true, toJSON : {getters : true}, toObject :{ getters : true,} }
+  { timestamps: true, toJSON : {getters : true,virtual: true}, toObject :{ virtual:true, getters : true,} }
 );
+
+userSchema.virtual('saved_cards',{
+  ref : Card,
+  localField : '_id',
+  foreignField : 'userId',
+
+});
+
 
 userSchema.plugin(mongoosePaginate);
 

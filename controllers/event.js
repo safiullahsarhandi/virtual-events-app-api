@@ -1,5 +1,5 @@
 const moment = require("moment");
-
+const Mail = require('../core/Mail/Mail');
 const User = require("../models/User");
 const Event = require("../models/Event");
 const Payment = require("../models/Payment");
@@ -9,6 +9,12 @@ const {
   createCustomerStripe,
   makePayment,
 } = require("../services/stripe");
+const Stripe = require('stripe');
+const { Types } = require("mongoose");
+const { view } = require("../core/helpers");
+const EventInvitee = require("../models/EventInvitee");
+const { delete_file } = require("../services/delete_file");
+const File = require("../models/File");
 
 exports.hostEvent = async (req, res) => {
   const session = await Event.startSession();
@@ -23,10 +29,7 @@ exports.hostEvent = async (req, res) => {
         time,
         guest_of_honor,
         event_elements,
-        card_number,
-        card_expiry_month,
-        card_expiry_year,
-        cvv,
+        card : cardId,
       } = req.body;
 
       const event_category = await EventCategory.findById(_event_category);
@@ -54,17 +57,17 @@ exports.hostEvent = async (req, res) => {
         event.event_type = "Pay Per Event";
         event.save(opts);
 
-        const stripe_user = await createCustomerStripe(
-          user,
-          user.auth.email,
-          card_number,
-          card_expiry_month,
-          card_expiry_year,
-          cvv
-        );
-        user.stripe_customer = stripe_user;
+        // const stripe_user = await createCustomerStripe(
+        //   user,
+        //   user.auth.email,
+        //   card_number,
+        //   card_expiry_month,
+        //   card_expiry_year,
+        //   cvv
+        // );
+        // user.stripe_customer = stripe_user;
 
-        await user.save(opts);
+        // await user.save(opts);
 
         const payment = new Payment({
           user: user._id,
@@ -72,18 +75,37 @@ exports.hostEvent = async (req, res) => {
           amount: total,
           amount_type: "Event",
         });
-
-        const charge_object = await makePayment(
-          card_number,
-          card_expiry_month,
-          card_expiry_year,
-          cvv,
-          total,
-          stripe_user
-        );
+        // const charge_object = 
+        const stripe = Stripe(process.env.STRIPE_KEY); 
+        try {
+          var charge_object = await stripe.charges.create({
+            amount: parseFloat(total) * 100,
+            description: `Payment for Event: ${event.name}`,
+            currency: "gbp",
+            customer: user.stripe_customer.id,
+            source : cardId,
+          });
+          console.log(charge_object);
+        }catch(error){
+          console.log(error);
+          await session.abortTransaction();
+          
+          return res.code(409).send({
+            message : error.toString(),
+            status : false,
+          });
+        }
+        // const charge_object = await makePayment(
+        //   card_number,
+        //   card_expiry_month,
+        //   card_expiry_year,
+        //   cvv,
+        //   total,
+        //   stripe_user
+        // );
         payment.charge_object = charge_object;
         charge_id = charge_object.id;
-
+        
         if (charge_object.status === "succeeded") {
           payment.payment_status = "Payment Completed";
         }
@@ -95,13 +117,15 @@ exports.hostEvent = async (req, res) => {
 
       await session.commitTransaction();
       session.endSession();
-
       await res.code(201).send({
-        message: user.is_subscribed
+        status : true,
+        event : event,
+        message: (event_category.inclueSubscription || user.is_subscribed)
           ? "Event Created Using Subscription"
           : "Event Created Without Using Any Subscription",
       });
     } catch (err) {
+      console.log(err);
       if (charge_id && total_global) {
         await refundPayment(charge_id, total_global);
       }
@@ -191,5 +215,141 @@ exports.get = async (req, res) => {
     res.code(500).send({
       message: err.toString(),
     });
+  }
+};
+
+
+
+exports.sendInvite = async (req,res)=> {
+    let event;
+    try {
+      const {id} = req.params;
+      let {emails}= req.body;
+      event = await Event.findById(id).populate('user'); 
+      let message = await view('invitation.ejs',{event});
+      emails.forEach(async function(email){
+          let invite = await EventInvitee.findOneAndUpdate({
+            eventId : Types.ObjectId(id),
+            email
+          },{
+            email,
+          },{
+            upsert : true,
+          });
+          console.log(invite);
+      });
+      const mail = new Mail();
+      mail
+      .bcc(req.body.emails)
+      .subject(`Event: ${event.name} Invitation`)
+      .message(message)
+      .send()
+      res.code(201).send({
+        message : 'invitiation sent',
+        status : true,
+      });
+    } catch (error) {
+      console.log(error);
+        res.code(404).send({
+          message : 'invalid event',
+          status : false,
+        });
+    }
+}
+
+
+exports.getMyEvents = async (req,res)=> {
+  let events;
+  let {page,perPage,type} = req.query;
+  perPage = perPage || 10;
+  let dateFilter = type?
+   {
+      $lt : moment(new Date()).startOf('day'), 
+    }:
+    {
+      $gte : moment(new Date()).startOf('day'), 
+    };
+
+    const searchParam = req.query.search
+      ? { name: { $regex: `${req.query.search}`, $options: "i" } }
+      : {};
+    
+  try {
+    
+      var {docs : data,totalPages : total,pagingCounter : from} = await Event.paginate({
+        user : Types.ObjectId(req.user.userId),
+        ...searchParam,
+        date : dateFilter,
+        
+      },{
+        page,
+        limit: perPage, 
+      });
+      return res.send({
+        data,
+        currentPage : page,
+        perPage,
+        total,
+        from
+      });
+  } catch (error) {
+      res.code(500).send({
+        status : false,
+        message : error.toString(),
+      });
+  }
+  
+};
+
+
+exports.getEvent = async (req,res)=>{
+  try {
+    let event = await Event.findById(req.params.id).populate('event_category invitees media');
+    res.send({event});
+  } catch (error) {
+    res.code(404).send({
+      message : error.toString(),
+      status : false,
+    });
+  }
+};
+
+
+exports.updateEvent = async (req,res)=> {
+  try {
+    var event = await Event.findByIdAndUpdate(req.params.id,{
+      ...req.body,
+      upload_allowed : req.body.upload_allowed == 'true',
+    },{upsert : true}).populate('media');
+    const file =
+      req.files &&
+      req.files.file &&
+      req.files.file[0];
+    if(file){
+
+      if(event.media)
+        delete_file(`uploads/${event.media.path}`);
+      
+        await File.create({
+          userId : req.user.userId,
+          name : file.originalname,
+          path : file.filename,
+          size : file.size,
+          mime : file.mimetype,
+          fileableType : 'Event',
+          fileableId : event._id,
+        });
+    }
+
+    res.send({
+      message : 'event updated successfully',
+      status : true,
+    })
+    
+  } catch (error) {
+    res.code(500).send({
+      message : 'unable to update this event',
+      status : false,
+    })
   }
 };

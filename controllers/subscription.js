@@ -4,7 +4,7 @@ const User = require("../models/User");
 const Package = require("../models/Package");
 const Payment = require("../models/Payment");
 const Subscription = require("../models/Subscription");
-
+const Stripe = require('stripe');
 const {
   createCustomerStripe,
   makePayment,
@@ -17,11 +17,8 @@ exports.subscribe = async (req, res) => {
   let charge_id, amount;
   try {
     const {
-      card_number,
-      card_expiry_month,
-      card_expiry_year,
-      cvv,
-      package_id,
+      card, 
+      id : package_id,
       reoccouring,
     } = req.body;
     const opts = { session };
@@ -37,15 +34,7 @@ exports.subscribe = async (req, res) => {
     }
 
     amount = package.amount;
-
-    const stripe_customer = await createCustomerStripe(
-      user,
-      user.auth.email,
-      card_number,
-      card_expiry_month,
-      card_expiry_year,
-      cvv
-    );
+    
 
     const subscription = new Subscription({
       user: req.user.userId,
@@ -56,7 +45,7 @@ exports.subscribe = async (req, res) => {
       ),
       status: "Active",
       subscription_price: package.amount,
-      reoccouring,
+      reoccouring : true,
     });
 
     const payment_doc = await Payment({
@@ -68,19 +57,17 @@ exports.subscribe = async (req, res) => {
 
     user.is_subscribed = true;
     user.subscription = subscription._id;
-    user.stripe_customer = stripe_customer;
+    // user.stripe_customer = stripe_customer;
 
     subscription.payment = payment_doc._id;
-
-    const payment = await makePayment(
-      card_number,
-      card_expiry_month,
-      card_expiry_year,
-      cvv,
-      package.amount,
-      stripe_customer
-    );
-
+      const stripe = Stripe(process.env.STRIPE_KEY); 
+      var payment = await stripe.charges.create({
+        amount: parseFloat(package.amount) * 100,
+        description: `Payment for Package: ${package.name}`,
+        currency: "gbp",
+        customer: user.stripe_customer.id,
+        source : card,
+      });
     charge_id = payment.id;
 
     if (payment.status === "succeeded") {
@@ -97,6 +84,7 @@ exports.subscribe = async (req, res) => {
     session.endSession();
 
     await res.code(200).send({
+      status : false,
       message: "Package Subscribed",
     });
   } catch (err) {
@@ -110,6 +98,7 @@ exports.subscribe = async (req, res) => {
     }
 
     res.code(500).send({
+      status : false,
       message: err.toString(),
     });
   }
@@ -179,3 +168,40 @@ exports.logs = async (req, res) => {
     });
   }
 };
+
+
+exports.getPlans = async (req,res)=> {
+  try {
+    let {page} = req.query;
+    if(!page){
+        
+        const packages = await Package.find({
+        status : true,
+      });  
+      return res.send({packages});
+    }
+    const {docs : data, totalPages : total,pagingCounter : from} = await Package.paginate({
+      
+    },{
+      page,
+    });
+    return res.send({
+      data,
+      currentPage : page,
+      total,
+      from
+    });
+  } catch (error) {
+      console.log(error);
+  }
+}
+
+
+exports.getPlan = async (req,res)=> {
+  try {
+    const plan = await Package.findById(req.params.id);  
+    res.send({plan});
+  } catch (error) {
+    
+  }
+}

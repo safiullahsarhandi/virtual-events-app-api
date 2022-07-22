@@ -6,10 +6,12 @@ const {
   logs,
   changeStatus,
   get,
+  getCategoryDetail,
 } = require("../../../../controllers/storyCategory");
 
 module.exports = async function (fastify, opts) {
   //@ADMIN ROUTES
+  fastify.get("/user/:id", { preHandler: [fastify.authenticate] }, get);
   fastify.post("/admin/add", { preHandler: [fastify.authenticate_admin] }, add);
   fastify.post(
     "/admin/edit",

@@ -15,6 +15,7 @@ const categorySchema = new Schema(
     category_image: {
       type: String,
       required: true,
+      get: (path)=> `${process.env.BASE_URL}/${path}`,
     },
     description: {
       type: String,
@@ -28,7 +29,7 @@ const categorySchema = new Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true, toJSON : {getters : true,},toObject : {getters : true,} }
 );
 
 categorySchema.plugin(mongoosePaginate);

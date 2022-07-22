@@ -14,6 +14,8 @@ const {
   logs,
   changeStatus,
   storyDetails,
+  all,
+  getStory,
 } = require("../../../../controllers/story");
 
 module.exports = async function (fastify, opts) {
@@ -22,6 +24,17 @@ module.exports = async function (fastify, opts) {
     "/user/add",
     { preHandler: [images, fastify.authenticate] },
     add
+  );
+  fastify.get(
+    "/user/all",
+    { preHandler: [images, fastify.authenticate] },
+    all
+  );
+
+  fastify.get(
+    "/user/:id",
+    { preHandler: [images, fastify.authenticate] },
+    getStory
   );
 
   // @ADMIN ROUTES

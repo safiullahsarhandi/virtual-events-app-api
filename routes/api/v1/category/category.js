@@ -13,6 +13,8 @@ const {
   get,
   updateCategory,
   searchCategory,
+  allCategories,
+  storyCategories
 } = require("../../../../controllers/category");
 
 module.exports = async function (fastify, opts) {
@@ -47,4 +49,7 @@ module.exports = async function (fastify, opts) {
     { preHandler: [fastify.authenticate_admin] },
     searchCategory
   );
+
+  fastify.get('/user/all',{preHandler : [fastify.authenticate]},allCategories);
+  fastify.get('/story',{preHandler : [fastify.authenticate]},storyCategories);
 };

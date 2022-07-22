@@ -10,7 +10,9 @@ const connectDB = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       useCreateIndex: true,
+      autoCreate : true,
     });
+    mongoose.set('debug',true);
     console.log(
       "\u001b[" +
         34 +
