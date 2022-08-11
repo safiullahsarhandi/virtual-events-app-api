@@ -17,7 +17,8 @@ const orderSchema = new Schema(
     },
     billing_address: {
       country: {
-        type: String,
+        type: mongoose.Types.ObjectId,
+        ref : 'Country',
         required: true,
       },
       first_name: {
@@ -33,11 +34,13 @@ const orderSchema = new Schema(
         required: true,
       },
       state: {
-        type: String,
+        type: mongoose.Types.ObjectId,
+        ref : 'State',
         required: true,
       },
       city: {
-        type: String,
+        type: mongoose.Types.ObjectId,
+        ref : 'City',
         required: true,
       },
       zip_code: {
@@ -50,7 +53,7 @@ const orderSchema = new Schema(
       },
       country_code: {
         type: String,
-        required: true,
+        default: null,
       },
       phone: {
         type: String,
@@ -59,7 +62,8 @@ const orderSchema = new Schema(
     },
     shipping_address: {
       country: {
-        type: String,
+        type: mongoose.Types.ObjectId,
+        ref : 'Country',
         required: true,
       },
       first_name: {
@@ -75,11 +79,13 @@ const orderSchema = new Schema(
         required: true,
       },
       state: {
-        type: String,
+        type: mongoose.Types.ObjectId,
+        ref : 'State',
         required: true,
       },
       city: {
-        type: String,
+        type: mongoose.Types.ObjectId,
+        ref : 'City',
         required: true,
       },
       zip_code: {
@@ -92,45 +98,46 @@ const orderSchema = new Schema(
       },
       country_code: {
         type: String,
-        required: true,
+        default: null,
       },
       phone: {
         type: String,
         required: true,
       },
     },
-    products: [
-      {
-        product: {
-          type: Object,
-          required: true,
-        },
-        quantity: {
-          type: Number,
-          required: true,
-        },
-        sub_attr: Object,
-        main_attr: Object,
-      },
-    ],
-    price_info: {
-      sub_total: {
-        type: Number,
-        required: true,
-      },
-      shipping_fee: {
-        type: Number,
-        required: true,
-      },
-      tax: {
-        type: Number,
-        required: true,
-      },
-      total: {
-        type: Number,
-        required: true,
-      },
-    },
+    // products: [
+    //   {
+    //     product: {
+    //       type: Schema.Types.ObjectId,
+    //       ref : '',
+    //       required: false,
+    //     },
+    //     quantity: {
+    //       type: Number,
+    //       required: true,
+    //     },
+    //     sub_attr: Object,
+    //     main_attr: Object,
+    //   },
+    // ],
+    // price_info: {
+    //   sub_total: {
+    //     type: Number,
+    //     required: true,
+    //   },
+    //   shipping_fee: {
+    //     type: Number,
+    //     required: true,
+    //   },
+    //   tax: {
+    //     type: Number,
+    //     required: true,
+    //   },
+    //   total: {
+    //     type: Number,
+    //     required: true,
+    //   },
+    // },
   },
   { timestamps: true }
 );

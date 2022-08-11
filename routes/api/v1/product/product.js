@@ -12,9 +12,16 @@ const {
   getProductDetails,
   logs,
   updateProduct,
+  getProducts,
+  updateWishlist,
+  getReviews
 } = require("../../../../controllers/product");
 
 module.exports = async function (fastify, opts) {
+  // @USER ROUTES
+  fastify.post('/wishlist/:id',{preHandler : [fastify.authenticate]},updateWishlist);
+  fastify.get('/:id/reviews',{preHandler : [fastify.authenticate]},getReviews);
+  fastify.get('/all',{preHandler : [fastify.authenticate]},getProducts);
   //@ADMIN ROUTES
   fastify.post(
     "/admin/add",
@@ -36,6 +43,7 @@ module.exports = async function (fastify, opts) {
     { preHandler: [fastify.authenticate_admin] },
     changeStatus
   );
+  
 
   // @GENERAL
   fastify.get("/details/:id", getProductDetails);

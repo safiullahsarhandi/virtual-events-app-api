@@ -31,7 +31,7 @@ const fastify = require("fastify")({
   logger: {
     prettyPrint: true,
   },
-  https: credentials,
+  // https: credentials,
 });
 
 fastify.register(AutoLoad, {

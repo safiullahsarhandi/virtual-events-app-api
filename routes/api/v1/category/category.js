@@ -14,7 +14,8 @@ const {
   updateCategory,
   searchCategory,
   allCategories,
-  storyCategories
+  storyCategories,
+  allSubCategories
 } = require("../../../../controllers/category");
 
 module.exports = async function (fastify, opts) {
@@ -51,5 +52,6 @@ module.exports = async function (fastify, opts) {
   );
 
   fastify.get('/user/all',{preHandler : [fastify.authenticate]},allCategories);
+  fastify.get('/sub-categories/:id',{preHandler : [fastify.authenticate]},allSubCategories);
   fastify.get('/story',{preHandler : [fastify.authenticate]},storyCategories);
 };

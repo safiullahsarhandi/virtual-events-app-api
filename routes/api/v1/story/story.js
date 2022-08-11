@@ -25,6 +25,12 @@ module.exports = async function (fastify, opts) {
     { preHandler: [images, fastify.authenticate] },
     add
   );
+  fastify.post(
+    "/user/status/:id",
+    { preHandler: [fastify.authenticate] },
+    changeStatus
+  );
+
   fastify.get(
     "/user/all",
     { preHandler: [images, fastify.authenticate] },

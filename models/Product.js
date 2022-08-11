@@ -48,9 +48,28 @@ const productSchema = new Schema(
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true,
+  toJSON : {
+    virtuals : true,
+  },toObject : {
+    virtuals : true,
+  } }
 );
 
 productSchema.plugin(mongoosePaginate);
+
+productSchema.virtual('isWishlist',{
+  ref : 'Wishlist',
+  localField : '_id',
+  foreignField : 'productId',
+  count : true, 
+});
+
+productSchema.virtual('total_ratings',{
+  ref : 'Review',
+  localField : '_id',
+  foreignField : 'product',
+  count : true,
+});
 
 module.exports = mongoose.model("Product", productSchema);

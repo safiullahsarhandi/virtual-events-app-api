@@ -4,9 +4,15 @@ const {
   logs,
   changeStatus,
   userDetails,
+  getCountries,
+  getStates,
+  getCities
 } = require("../../../../controllers/user");
 
 module.exports = async function (fastify, opts) {
+  fastify.get('/countries',{preHandler : [fastify.authenticate]},getCountries);
+  fastify.get('/states/:countryId',{preHandler : [fastify.authenticate]},getStates);
+  fastify.get('/cities/:stateId',{preHandler : [fastify.authenticate]},getCities);
   //@ADMIN ROUTES
   fastify.get(
     "/admin/logs",

@@ -314,3 +314,16 @@ exports.storyCategories = async (req,res)=> {
     });
   }
 };
+
+
+exports.allSubCategories = async (req,res)=> {
+  
+  try{
+    let category = await Category.findById(req.params.id).populate('sub_categories');
+    res.code(200).send({
+      category,
+    });
+  }catch(error){
+      console.log(error);
+  }
+};

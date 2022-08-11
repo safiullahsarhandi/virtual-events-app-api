@@ -138,21 +138,29 @@ exports.storyDetails = async (req, res) => {
 
 
 exports.all = async (req,res)=> {
-  let {page,limit,type,category} = req.query; 
+  let {page,limit,type,category, search} = req.query; 
   page = page || 1;
-  limit = limit || 10;
+  limit = limit || 5;
+  let typeFilter = type?{story_type : {$regex: type,$options: "i"}} :{}; 
+  let categoryFilter  = category?{category : Types.ObjectId(category)}:{};
+  let searchFilter = search?{
+    title : {$regex : search, $options : 'i'},
+  }:{};
   let {docs : data , totalPages : total,pagingCounter : from} = await Story.paginate({
-    story_type : {$regex: type,$options: "i"},
-    category : Types.ObjectId(category),
+    ...searchFilter,
+    ...categoryFilter,
+    ...typeFilter,
   },{
     page,
     limit : limit,
+    populate : ['category'],
   });
 
   res.send({
     data,
     total,
     currentPage : page,
+    perPage : limit,
     from, 
   });
 };

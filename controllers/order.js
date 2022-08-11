@@ -267,3 +267,30 @@ exports.orderDetails = async (req, res) => {
     });
   }
 };
+
+
+
+exports.placeOrder = async (req,res)=> {
+    let session = await Order.startSession();
+    session.startTransaction();
+    try {
+      let opts = { session };
+      let {billing,shipping} = req.body;
+      let order = new Order({
+        billing_address : billing,  
+        shipping_address : shipping,  
+        order_status : 'Pending',
+        user : req.userId,
+      });
+
+      order.save(opts);
+      // OrderProduct.
+      await session.commitTransaction();
+      session.endSession();
+    } catch (error) {
+        await session.abortTransaction();
+        res.code(500).send({
+          message : error.toString(),
+        });
+    }
+}

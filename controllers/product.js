@@ -1,6 +1,9 @@
 const moment = require("moment");
+const { Types } = require("mongoose");
 
 const Product = require("../models/Product");
+const Review = require("../models/Review");
+const Wishlist = require("../models/Wishlist");
 const { ratingsBreakdown } = require("../services/calculate_avg_ratings");
 
 const { delete_file } = require("../services/delete_file");
@@ -173,10 +176,24 @@ exports.changeStatus = async (req, res) => {
 
 exports.getProductDetails = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).lean().populate({
-      path: "category",
-      select: "name",
-    });
+    // console.log(req.user);
+    const product = await Product.findById(req.params.id).lean().populate([
+      {
+        path: "category",
+        select: "name",
+      },
+      {
+        path : 'total_ratings',
+        model : 'Review',                                        
+      },
+      {
+        path : 'isWishlist',
+        model : 'Wishlist',
+        match : {
+          userId : Types.ObjectId(req.userId),
+        },
+      },
+    ]);
     const ratings = await ratingsBreakdown(product._id);
     await res.code(200).send({
       product,
@@ -186,5 +203,93 @@ exports.getProductDetails = async (req, res) => {
     res.code(500).send({
       message: err.toString(),
     });
+  }
+};
+
+
+exports.getProducts = async (req,res)=> {
+  
+  let {page,limit} = req.query;
+  page = page || 1;
+  limit = limit || 10; 
+  try {
+    
+    let {docs : data, pagingCounter : from, totalPages : total} = await Product.paginate({},
+      {
+      page,
+      limit, 
+      populate : {
+        path : 'isWishlist',
+        model : 'Wishlist',
+        match : {
+          userId : Types.ObjectId(req.user.userId),
+        },
+      },
+    });
+    
+    res.code(200).send({
+      data,
+      currentPage : page,
+      perPage : limit,
+      from,
+      total
+    });
+
+  } catch (error) {
+      console.log(error);
+  }
+  
+};
+
+
+
+exports.updateWishlist = async (req,res)=> {
+    let {id} = req.params;  
+    let wishlist = await Wishlist.findOne({
+      productId : id,
+      userId : req.user.userId      
+    });
+    if(wishlist){
+        await wishlist.delete();
+    }else{      
+        await Wishlist.create({
+          productId : id,
+          userId : req.user.userId,
+        });
+    }
+
+    res.code(200).send({
+      status : 200,
+      message : 'wishlist updated',
+    })
+    
+    
+
+}
+
+exports.getReviews = async (req,res)=> {
+  try {
+    let {id} = req.params;
+    let {page} = req.query; 
+    page = page || 1;
+    let perPage = 10; 
+    let {docs : data, totalPages : total, pagingCounter : from,} = await Review.paginate(
+        {
+          product : Types.ObjectId(id),
+        },
+        {
+        page,
+        limit : perPage,
+        populate : ['user']
+    });
+    res.send({
+      data,
+      total,
+      perPage : page,
+      currentPage : page,
+      from,
+    });
+  } catch (error) {
+    
   }
 };

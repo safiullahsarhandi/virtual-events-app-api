@@ -1,8 +1,12 @@
 const moment = require("moment");
 
 const User = require("../models/User");
+const Country = require("../models/Country");
+const State = require("../models/State");
+const City = require("../models/City");
 
 const { validateEmail } = require("../validations");
+const { Types } = require("mongoose");
 
 exports.logs = async (req, res) => {
   try {
@@ -110,5 +114,51 @@ exports.userDetails = async (req, res) => {
     res.code(500).send({
       message: err.toString(),
     });
+  }
+};
+
+
+exports.getCountries = async (req,res)=> {
+  try {
+    let countries = await Country.find();
+
+    res.send({
+      countries
+    });
+  } catch (error) {
+      console.log(error);
+  }
+};
+
+exports.getStates = async (req,res)=> {
+  try {
+    let {countryId} = req.params;
+    
+    let states = await State.find({
+        country_id : countryId,
+    });
+
+    res.send({
+      states
+    });
+  } catch (error) {
+      console.log(error);
+  }
+};
+
+
+exports.getCities = async (req,res)=> {
+  try {
+    let {stateId} = req.params;
+    
+    let cities = await City.find({
+        state_id : Types.ObjectId(stateId),
+    });
+
+    res.send({
+      cities
+    });
+  } catch (error) {
+      console.log(error);
   }
 };
