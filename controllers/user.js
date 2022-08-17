@@ -7,6 +7,8 @@ const City = require("../models/City");
 
 const { validateEmail } = require("../validations");
 const { Types } = require("mongoose");
+const Mail = require("../core/Mail/Mail");
+const { view } = require("../core/helpers");
 
 exports.logs = async (req, res) => {
   try {
@@ -161,4 +163,26 @@ exports.getCities = async (req,res)=> {
   } catch (error) {
       console.log(error);
   }
+};
+
+
+exports.contactUs = async (req,res)=> {
+    try {
+      await (new Mail)
+      .to(process.env.ADMIN_EMAIL)
+      .subject('Could you tell | Contact Us')
+      .message(await view('contact-us.ejs',req.body))
+      .send();
+      res.code(200).send({
+        message : 'Thank\'s for sending these details. you will hear from us soon!',
+        status : true,
+      });
+    } catch (error) {
+      console.log(error);
+      res.code(500).send({
+        message : 'something went wrong',
+        meta : error.toString(),
+        status : false,
+      })
+    }
 };

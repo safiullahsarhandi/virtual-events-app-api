@@ -1,4 +1,6 @@
+const { Types } = require("mongoose");
 const { convertToLabelValue } = require("../mapping/labelValue");
+const Category = require("../models/Category");
 const SubCategory = require("../models/SubCategory");
 
 exports.add = async (req, res) => {
@@ -43,15 +45,17 @@ exports.update = async (req, res) => {
 
 exports.searchSubCategory = async (req, res) => {
   try {
-    const searchParam = req.query.searchString
-      ? { name: { $regex: `${req.query.searchString}`, $options: "i" } }
+    let {parent,searchString} = req.query;
+    const searchParam = searchString
+      ? { name: { $regex: `${searchString}`, $options: "i" } }
       : {};
     let sub_categories;
-    if (!req.query.searchString) {
-      sub_categories = await SubCategory.paginate(
+    if (!searchString) {
+      sub_categories = await Category.paginate(
         {
+          parent : Types.ObjectId(parent),
           status: true,
-          used: false,
+          ...searchParam,
         },
         {
           page: 1,
@@ -62,9 +66,9 @@ exports.searchSubCategory = async (req, res) => {
       );
       sub_categories = sub_categories.docs;
     } else {
-      sub_categories = await SubCategory.find({
+      sub_categories = await Category.find({
+        parent : Types.ObjectId(parent),
         status: true,
-        used: false,
         ...searchParam,
       })
         .select("name")

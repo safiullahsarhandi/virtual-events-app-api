@@ -16,7 +16,8 @@ exports.addCategory = async (req, res) => {
       const {
         name,
         status,
-        sub_categories: _sub_categories,
+        parent,
+        // sub_categories: _sub_categories,
         description,
       } = req.body;
       const category_image =
@@ -24,23 +25,16 @@ exports.addCategory = async (req, res) => {
         req.files.category_image &&
         req.files.category_image[0] &&
         req.files.category_image[0].path;
-      const sub_categories = JSON.parse(_sub_categories);
+      // const sub_categories = JSON.parse(_sub_categories);
 
       const category = new Category({
         name,
         status,
         description,
         category_image,
-        sub_categories,
+        parent,
+        // sub_categories,
       });
-
-      await Promise.all(
-        sub_categories.map(async (sub_category) => {
-          const used_sub = await SubCategory.findById(sub_category);
-          used_sub.used = true;
-          await used_sub.save(opts);
-        })
-      );
 
       await category.save(opts);
 
@@ -97,18 +91,11 @@ exports.logs = async (req, res) => {
         ...status_filter,
       },
       {
+        populate : ['sub_categories_count','no_products'],
         page: req.query.page,
         limit: req.query.perPage,
         lean: true,
       }
-    );
-
-    await Promise.all(
-      logs.docs.map(async (log) => {
-        log.no_products = await Product.find({ category: log._id })
-          .select("_id")
-          .countDocuments();
-      })
     );
 
     await res.code(200).send({
@@ -166,49 +153,25 @@ exports.updateCategory = async (req, res) => {
       id,
       name,
       status,
-      sub_categories: _sub_categories,
+      parent,
       description,
-      old_sub_categories: _old_sub_categories,
     } = req.body;
     const new_category_image =
       req.files &&
       req.files.category_image &&
       req.files.category_image[0] &&
       req.files.category_image[0].path;
-    const sub_categories = JSON.parse(_sub_categories);
-    const old_sub_categories = JSON.parse(_old_sub_categories);
-
+      
     const category = await Category.findById(id);
     const image_to_delete = category.category_image;
 
     category.name = name;
     category.status = status;
-    category.sub_categories = sub_categories;
     category.description = description;
     category.category_image = new_category_image
       ? new_category_image
       : category.category_image;
-
-    await Promise.all(
-      sub_categories.map(async (sub_category) => {
-        const used_sub = await SubCategory.findById(sub_category);
-        used_sub.used = true;
-        await used_sub.save(opts);
-      })
-    );
-
-    const filteredArray = old_sub_categories.filter(
-      (value) => !sub_categories.includes(value)
-    );
-
-    await Promise.all(
-      filteredArray.map(async (sub_category) => {
-        const used_sub = await SubCategory.findById(sub_category);
-        console.log("used_sub: ", used_sub);
-        used_sub.used = false;
-        await used_sub.save(opts);
-      })
-    );
+    category.parent = parent;
 
     await category.save(opts);
 
@@ -247,6 +210,7 @@ exports.searchCategory = async (req, res) => {
       categories = await Category.paginate(
         {
           status: true,
+          parent : null,
         },
         {
           page: 1,
@@ -259,6 +223,7 @@ exports.searchCategory = async (req, res) => {
     } else {
       categories = await Category.find({
         status: true,
+        parent : null,
         ...searchParam,
       })
         .select("name")

@@ -21,17 +21,44 @@ const categorySchema = new Schema(
       type: String,
       required: true,
     },
-    sub_categories: [
+    parent: {
+      type: Schema.Types.ObjectId,
+      required: true,
+    },
+    /* sub_categories: [
       {
         type: Schema.Types.ObjectId,
         ref: "SubCategory",
         required: true,
       },
-    ],
+    ], */
   },
-  { timestamps: true, toJSON : {getters : true,},toObject : {getters : true,} }
+  { timestamps: true, toJSON : {virtuals : true, getters : true,},toObject : {virtuals : true, getters : true,} }
 );
 
 categorySchema.plugin(mongoosePaginate);
+
+categorySchema.virtual('sub_categories',{
+  ref : 'Category',
+  localField : 'parent',
+  foreignField : '_id',
+
+});
+
+categorySchema.virtual('sub_categories_count',{
+  ref : 'Category',
+  localField : 'parent',
+  foreignField : '_id',
+  count : true,
+});
+
+categorySchema.virtual('no_products',{
+  ref : 'Product',
+  localField : '_id',
+  foreignField : 'category',
+  count : true,
+});
+
+
 
 module.exports = mongoose.model("Category", categorySchema);

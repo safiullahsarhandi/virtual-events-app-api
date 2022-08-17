@@ -9,6 +9,8 @@ const {
   makePayment,
   createCustomerStripe,
 } = require("../services/stripe");
+const OrderProduct = require("../models/OrderProduct");
+const { Types } = require("mongoose");
 
 exports.createOrder = async (req, res) => {
   const session = await Order.startSession();
@@ -161,8 +163,8 @@ exports.logs = async (req, res) => {
       : {};
     const user_filter = req.user.scope.is_user
       ? {
-          user_id: req.user.userId,
-        }
+        user_id: req.user.userId,
+      }
       : {};
     const user_filter_admin = req.query.user ? { user_id: req.query.user } : {};
     const logs = await Order.paginate(
@@ -269,28 +271,194 @@ exports.orderDetails = async (req, res) => {
 };
 
 
+exports.placeOrder = async (req, res) => {
+  let session = await Order.startSession();
+  session.startTransaction();
+  try {
+    let opts = { session };
+    // extract params;
+    let { billing, shipping, products, card: cardId } = req.body;
+    let order = new Order({
+      billing_address: billing,
+      shipping_address: shipping,
+      order_status: 'Pending',
+      user: req.user.userId,
+    });
 
-exports.placeOrder = async (req,res)=> {
-    let session = await Order.startSession();
-    session.startTransaction();
-    try {
-      let opts = { session };
-      let {billing,shipping} = req.body;
-      let order = new Order({
-        billing_address : billing,  
-        shipping_address : shipping,  
-        order_status : 'Pending',
-        user : req.userId,
+    await order.save(opts);
+    products.forEach(item => (item.orderId = order._id));
+    await OrderProduct.insertMany(products);
+    // calculating order total 
+    let total = products.reduce((prevValue, current) => (prevValue += (parseInt(current.price) * parseInt(current.qty))), 0);
+    // pay order amount 
+    await order.pay(cardId, total);
+
+    await session.commitTransaction();
+    session.endSession();
+    res.code(201).send({
+      message: 'order has been placed successfully',
+      status: true,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.code(500).send({
+      message: error.toString(),
+    });
+  }
+}
+
+
+exports.getMyOrders = async (req, res) => {
+  try {
+    let { limit, page, order,status } = req.query;
+    page = page || 1;
+    limit = limit || 10;
+    order = order || 'descending';
+    let statusFilter = status?{order_status : status}: {};    
+    let aggregation;
+    aggregation = Order.aggregate()
+    if(statusFilter)
+      aggregation = aggregation.match(statusFilter)
+    
+    aggregation.lookup({
+        from: 'orderproducts',
+        localField: '_id',
+        foreignField: 'orderId',
+        as: 'order_products',
+      })
+      .addFields({
+        total: {
+          $reduce: {
+            input: '$order_products',
+            initialValue: 0,
+            in: {
+              $add: ['$$value', { $multiply: ['$$this.price', '$$this.qty'] }]
+            }
+          }
+        },
+        customer_name : {
+          $concat : ['$billing_address.first_name',' ','$billing_address.last_name']
+        },
+        customer_email : '$billing_address.email'
+      }).project({
+        order_products: 0,
       });
 
-      order.save(opts);
-      // OrderProduct.
-      await session.commitTransaction();
-      session.endSession();
-    } catch (error) {
-        await session.abortTransaction();
-        res.code(500).send({
-          message : error.toString(),
-        });
-    }
-}
+    let { docs: data, totalPages: total } = await Order.aggregatePaginate(aggregation, {
+      limit,
+      page,
+      sort : {
+        _id : order,
+      }
+    });
+    res.send({
+      data,
+      perPage : limit,
+      currentPage : page,
+      total,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+} 
+
+
+
+exports.getOrderDetail = async (req,res)=> {
+  try {
+    let {id} = req.params;
+    let order = await Order.aggregate()
+      .match({
+        _id : Types.ObjectId(id),
+      })
+      .lookup({
+        from: 'orderproducts',
+        localField: '_id',
+        foreignField: 'orderId',
+        as: 'products',
+        pipeline : [
+          {
+            $lookup : {
+              from: 'products',
+              localField: 'productId',
+              foreignField: '_id',
+              as: 'product',
+            }
+          },
+          {
+            $unwind : '$product'
+          }
+        ],
+      })
+      // join country
+      .lookup({
+        from: 'countries',
+        localField: 'billing_address.country',
+        foreignField: '_id',
+        as: 'billing_address.country',
+      })
+      .unwind('$billing_address.country')
+      // join city
+      .lookup({
+        from: 'cities',
+        localField: 'billing_address.city',
+        foreignField: '_id',
+        as: 'billing_address.city',
+      })
+      .unwind('$billing_address.city')
+      
+      // join state
+      .lookup({
+        from: 'states',
+        localField: 'billing_address.state',
+        foreignField: '_id',
+        as: 'billing_address.state',
+      })
+      .unwind('$billing_address.state')
+      
+      // join country
+      .lookup({
+        from: 'countries',
+        localField: 'shipping_address.country',
+        foreignField: '_id',
+        as: 'shipping_address.country',
+      })
+      .unwind('$shipping_address.country')
+      // join city
+      .lookup({
+        from: 'cities',
+        localField: 'shipping_address.city',
+        foreignField: '_id',
+        as: 'shipping_address.city',
+      })
+      .unwind('$shipping_address.city')
+      
+      // join state
+      .lookup({
+        from: 'states',
+        localField: 'shipping_address.state',
+        foreignField: '_id',
+        as: 'shipping_address.state',
+      })
+      .unwind('$shipping_address.state')
+      
+      .addFields({
+        total: {
+          $reduce: {
+            input: '$products',
+            initialValue: 0,
+            in: {
+              $add: ['$$value', { $multiply: ['$$this.price', '$$this.qty'] }]
+            }
+          }
+        },
+      })
+
+    res.send({
+      order : order[0] || null,
+    })
+  } catch (error) {
+      console.log(error);
+  }
+};

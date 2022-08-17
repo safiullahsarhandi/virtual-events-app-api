@@ -10,21 +10,26 @@ const paymentSchema = new Schema(
       ref: "User",
       required: true,
     },
-    subscription: {
+    payable_id : {
       type: Schema.Types.ObjectId,
-      ref: "Subscription",
-      required: false,
+      required: true,      
+    },
+    payable_type : {
+      type: String,
+      required: true,      
+    },
+    /* subscription: {
     },
     order: {
       type: Schema.Types.ObjectId,
       ref: "Order",
       required: false,
-    },
-    event: {
+    }, */
+    /* event: {
       type: Schema.Types.ObjectId,
       ref: "Event",
       required: false,
-    },
+    }, */
     amount: {
       type: Number,
       required: true,

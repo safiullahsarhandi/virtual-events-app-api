@@ -34,52 +34,32 @@ exports.subscribe = async (req, res) => {
     }
 
     amount = package.amount;
-    
+
 
     const subscription = new Subscription({
       user: req.user.userId,
-      package,
-      current_subscription_date: new Date(),
+      package : package._id,
       renewal_date: new Date(
         new Date().setMonth(new Date().getMonth() + package.duration)
       ),
-      status: "Active",
       subscription_price: package.amount,
       reoccouring : true,
     });
-
-    const payment_doc = await Payment({
-      user: req.user.userId,
-      subscription: subscription._id,
-      amount: package.amount,
-      amount_type: "Subscription",
-    });
-
-    user.is_subscribed = true;
-    user.subscription = subscription._id;
-    // user.stripe_customer = stripe_customer;
-
-    subscription.payment = payment_doc._id;
-      const stripe = Stripe(process.env.STRIPE_KEY); 
-      var payment = await stripe.charges.create({
-        amount: parseFloat(package.amount) * 100,
-        description: `Payment for Package: ${package.name}`,
-        currency: "gbp",
-        customer: user.stripe_customer.id,
-        source : card,
-      });
+    
+    var payment = await user.charge(package.amount,card);
     charge_id = payment.id;
 
-    if (payment.status === "succeeded") {
-      payment_doc.payment_status = "Payment Completed";
+    if (payment.status !== "succeeded") {
+      await session.abortTransaction();
+      session.endSession();
     }
-
-    payment_doc.charge_object = payment;
-
     await user.save(opts);
-    await payment_doc.save(opts);
     await subscription.save(opts);
-
+    
+    payment = await subscription.savePayLog(package.amount,'Subscription Payment',payment,opts);
+    subscription.payment = payment; 
+    await subscription.save(opts);
+    
     await session.commitTransaction();
     session.endSession();
 

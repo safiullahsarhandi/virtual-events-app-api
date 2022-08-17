@@ -4,7 +4,7 @@ const multer = require("fastify-multer");
 const { storage, fileFilter } = require("../../../../multer");
 
 const upload = multer({ storage, fileFilter });
-const images = upload.fields([{ name: "product_image", maxCount: 10 }]);
+const images = upload.any([{ name: "images", maxCount: 10 }]);
 
 const {
   addProduct,
@@ -14,14 +14,22 @@ const {
   updateProduct,
   getProducts,
   updateWishlist,
-  getReviews
+  getReviews,
+  getWishlists,
+  truncateWishlist,
+  getUserReviews,
 } = require("../../../../controllers/product");
 
 module.exports = async function (fastify, opts) {
   // @USER ROUTES
-  fastify.post('/wishlist/:id',{preHandler : [fastify.authenticate]},updateWishlist);
+  fastify.get('/user/reviews',{preHandler : [fastify.authenticate]},getUserReviews);
   fastify.get('/:id/reviews',{preHandler : [fastify.authenticate]},getReviews);
   fastify.get('/all',{preHandler : [fastify.authenticate]},getProducts);
+  
+  fastify.post('/wishlist/:id',{preHandler : [fastify.authenticate]},updateWishlist);
+  fastify.get('/wishlists',{preHandler : [fastify.authenticate]},getWishlists);
+  fastify.delete('/wishlists',{preHandler : [fastify.authenticate]},truncateWishlist);
+
   //@ADMIN ROUTES
   fastify.post(
     "/admin/add",

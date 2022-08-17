@@ -5,7 +5,9 @@ const {
   logs,
   orderDetails,
   changeOrderStatus,
-  placeOrder
+  placeOrder,
+  getMyOrders,
+  getOrderDetail
 } = require("../../../../controllers/order");
 
 module.exports = async function (fastify, opts) {
@@ -17,9 +19,21 @@ module.exports = async function (fastify, opts) {
   );
 
   fastify.post(
-    "/user/place-order",
+    "/place-order",
     { preHandler: [fastify.authenticate] },
     placeOrder
+  );
+
+  fastify.get(
+    "/my",
+    { preHandler: [fastify.authenticate] },
+    getMyOrders
+  );
+
+  fastify.get(
+    "/:id",
+    { preHandler: [fastify.authenticate] },
+    getOrderDetail
   );
 
   //@ADMIN ROUTES

@@ -14,6 +14,11 @@ const productSchema = new Schema(
       ref: "Category",
       required: true,
     },
+    sub_category: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
     price: {
       type: Number,
       required: true,

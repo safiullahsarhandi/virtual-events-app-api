@@ -12,6 +12,7 @@ exports.addProduct = async (req, res) => {
   try {
     const {
       name,
+      sub_category,
       category,
       price,
       about_product,
@@ -22,7 +23,7 @@ exports.addProduct = async (req, res) => {
 
     const images = [];
 
-    const _images = req.files.product_image;
+    const _images = req.files.filter(file => file.fieldname.includes('images'));
     if (!_images || _images.length === 0)
       throw new Error("Please Select Product Image");
 
@@ -38,6 +39,7 @@ exports.addProduct = async (req, res) => {
       status,
       attributes,
       images,
+      sub_category,
     });
 
     await product.save();
@@ -46,12 +48,13 @@ exports.addProduct = async (req, res) => {
       message: "Product Created",
     });
   } catch (err) {
+    const _images = req.files.filter(file => file.fieldname.includes('images'));
     if (
       req.files &&
-      req.files.product_image &&
-      req.files.product_image.length > 0
+      req.files.length > 0
+      
     )
-      req.files.product_image.forEach((image) => {
+      _images.forEach((image) => {
         delete_file(image.path);
       });
 
@@ -183,6 +186,10 @@ exports.getProductDetails = async (req, res) => {
         select: "name",
       },
       {
+        path: "sub_category",
+        select: "name",
+      },
+      {
         path : 'total_ratings',
         model : 'Review',                                        
       },
@@ -267,6 +274,44 @@ exports.updateWishlist = async (req,res)=> {
 
 }
 
+exports.getWishlists = async (req,res)=> {
+    try {
+      let {page:currentPage} = req.query;
+      currentPage = currentPage || 1;
+      let {docs : data, page,totalPages : total} = await Wishlist.paginate({
+        userId : Types.ObjectId(req.user.userId)
+      },{
+        page : currentPage,
+        populate : ['product'],
+      });
+      res.send({
+        data,
+        page,
+        total,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+};
+
+exports.truncateWishlist = async (req,res)=> {
+    try {
+        await Wishlist.deleteMany({
+          userId : Types.ObjectId(req.user.userId),
+        });
+        res.code(200).send({
+          message : 'wishlist has been cleared',
+          status : true,
+        });
+    } catch (error) {
+        res.code(500).send({
+            message : 'internal server error',
+            status : false,
+            meta : error.toString(),
+        })
+    }
+};
+
 exports.getReviews = async (req,res)=> {
   try {
     let {id} = req.params;
@@ -281,6 +326,33 @@ exports.getReviews = async (req,res)=> {
         page,
         limit : perPage,
         populate : ['user']
+    });
+    res.send({
+      data,
+      total,
+      perPage : page,
+      currentPage : page,
+      from,
+    });
+  } catch (error) {
+    
+  }
+};
+
+exports.getUserReviews = async (req,res)=> {
+  try {
+    let id = req.user.userId;
+    let {page} = req.query; 
+    page = page || 1;
+    let perPage = 10; 
+    let {docs : data, totalPages : total, pagingCounter : from,} = await Review.paginate(
+        {
+          userId : Types.ObjectId(id),
+        },
+        {
+        populate : ['product'],
+        page,
+        limit : perPage,
     });
     res.send({
       data,

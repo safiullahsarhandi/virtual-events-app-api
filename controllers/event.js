@@ -56,61 +56,17 @@ exports.hostEvent = async (req, res) => {
       if (!event_category.inclueSubscription || !user.is_subscribed) {
         event.event_type = "Pay Per Event";
         event.save(opts);
+        var charge_object = await user.charge(total,cardId); 
+        event.savePaylogs(total,'Event Payment',charge_object,opts);
 
-        // const stripe_user = await createCustomerStripe(
-        //   user,
-        //   user.auth.email,
-        //   card_number,
-        //   card_expiry_month,
-        //   card_expiry_year,
-        //   cvv
-        // );
-        // user.stripe_customer = stripe_user;
-
-        // await user.save(opts);
-
-        const payment = new Payment({
-          user: user._id,
-          event: event._id,
-          amount: total,
-          amount_type: "Event",
-        });
-        // const charge_object = 
-        const stripe = Stripe(process.env.STRIPE_KEY); 
-        try {
-          var charge_object = await stripe.charges.create({
-            amount: parseFloat(total) * 100,
-            description: `Payment for Event: ${event.name}`,
-            currency: "gbp",
-            customer: user.stripe_customer.id,
-            source : cardId,
-          });
-          console.log(charge_object);
-        }catch(error){
-          console.log(error);
-          await session.abortTransaction();
-          
-          return res.code(409).send({
-            message : error.toString(),
-            status : false,
-          });
-        }
-        // const charge_object = await makePayment(
-        //   card_number,
-        //   card_expiry_month,
-        //   card_expiry_year,
-        //   cvv,
-        //   total,
-        //   stripe_user
-        // );
-        payment.charge_object = charge_object;
+        // payment.charge_object = charge_object;
         charge_id = charge_object.id;
         
-        if (charge_object.status === "succeeded") {
+        /* if (charge_object.status === "succeeded") {
           payment.payment_status = "Payment Completed";
-        }
+        } */
 
-        await payment.save(opts);
+        // await payment.save(opts);
       } else {
         event.save(opts);
       }
@@ -129,9 +85,12 @@ exports.hostEvent = async (req, res) => {
       if (charge_id && total_global) {
         await refundPayment(charge_id, total_global);
       }
-      await session.abortTransaction();
-      session.endSession();
-
+        await session.abortTransaction();
+        session.endSession();            
+          return res.code(409).send({
+            message : error.toString(),
+            status : false,
+          });
       res.code(500).send({
         message: err.toString(),
       });
@@ -260,28 +219,82 @@ exports.sendInvite = async (req,res)=> {
 
 exports.getMyEvents = async (req,res)=> {
   let events;
-  let {page,perPage,type} = req.query;
+  let {page,perPage,type,route,event_type,date} = req.query;
   perPage = perPage || 10;
   let dateFilter = type?
-   {
-      $lt : moment(new Date()).startOf('day'), 
-    }:
+    { $lt : (date?new Date(date):new Date())}
+    :
     {
-      $gte : moment(new Date()).startOf('day'), 
+      date : { $gte : (date?new Date(date):new Date()) } 
     };
-
+    
+  let eventTypeFilter = event_type? {event_category : Types.ObjectId(event_type)}: {};
     const searchParam = req.query.search
       ? { name: { $regex: `${req.query.search}`, $options: "i" } }
       : {};
     
   try {
-    
-      var {docs : data,totalPages : total,pagingCounter : from} = await Event.paginate({
+      let aggregation = Event.aggregate();
+      let user = await User.findById(req.user.userId).select('_id name').populate('auth','email');
+      console.log(user);
+      if(route == 'invitedEvents'){
+          aggregation
+          .match({
+            ...eventTypeFilter,
+            user : {
+              $ne : Types.ObjectId(req.user.userId),
+            },
+            date : dateFilter,
+            ...searchParam,
+          })
+          .lookup({
+              from : 'eventinvitees',
+              localField : '_id',
+              foreignField : 'eventId',
+              as : 'invitees',
+              pipeline : [{
+                 $match : {
+                    email : user.auth.email,
+                 }, 
+              }],
+          })
+          .addFields({
+            isInvited : {
+              $toBool : {$size : '$invitees'},
+            }
+          })
+          .project({
+              invitees : 0,            
+          })
+          .match({
+            isInvited : true,
+          });
+      }else{
+        aggregation.match({          
+          user : Types.ObjectId(req.user.userId),
+          date : dateFilter,
+            ...searchParam,
+        });
+      }
+      
+
+      aggregation.lookup({
+          from : 'users',
+          localField : 'user',
+          foreignField : '_id',
+          as : 'user',
+      })
+      .unwind('$user');
+
+
+      /* 
+      ,{
         user : Types.ObjectId(req.user.userId),
         ...searchParam,
-        date : dateFilter,
         
-      },{
+      },
+       */
+      var {docs : data,totalPages : total,pagingCounter : from} = await Event.aggregatePaginate(aggregation,{
         page,
         limit: perPage, 
       });
@@ -293,6 +306,7 @@ exports.getMyEvents = async (req,res)=> {
         from
       });
   } catch (error) {
+    console.log(error);
       res.code(500).send({
         status : false,
         message : error.toString(),

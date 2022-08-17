@@ -1,5 +1,5 @@
-const {Schema,Types,model} = require('mongoose');
-
+const {Schema,Types,model, plugin} = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 const wishListSchema = new Schema({
     productId : {
         type : Types.ObjectId,
@@ -11,6 +11,27 @@ const wishListSchema = new Schema({
     },
 },{
     timestamps : true,
+    toObject : {
+        virtuals : true,
+    },
+    toJSON : {
+        virtuals : true,
+    },
+});
+plugin(mongoosePaginate);
+
+wishListSchema.virtual('product',{
+    localField : 'productId',
+    foreignField : '_id',
+    ref : 'Product',
+    justOne : true,
+});
+
+wishListSchema.virtual('user',{
+    localField : 'userId',
+    foreignField : '_id',
+    ref : 'User',
+    justOne : true,
 });
 
 module.exports = model('Wishlist',wishListSchema);

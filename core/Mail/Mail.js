@@ -7,6 +7,7 @@ module.exports =  class Mail {
     config = {};
     constructor(){
         try{
+            console.log(mailConfig);
             this.transporter = nodemailer.createTransport(mailConfig)
             this.config.from = `${mailConfig.from_name} <${mailConfig.from_address}>`;
             console.log(this.config);
@@ -94,7 +95,6 @@ module.exports =  class Mail {
 
     send(callback = null){
         try {
-            console.log(this.config);
             this.transporter.sendMail(this.config);
         } catch (error) {
             console.log(error);
