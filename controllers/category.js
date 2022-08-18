@@ -46,6 +46,7 @@ exports.addCategory = async (req, res) => {
       });
     });
   } catch (err) {
+    console.log(error);
     await session.abortTransaction();
     session.endSession();
 
