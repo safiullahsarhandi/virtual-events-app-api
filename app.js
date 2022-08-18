@@ -8,21 +8,21 @@ const AutoLoad = require("fastify-autoload");
 const multer = require("fastify-multer");
 
 // SSL Configuration
-const local = true;
+const isProduction = process.env.NODE_ENV != 'development';
 let credentials = {};
 
-if (local) {
+if (isProduction) {
   credentials = {
     key: fs.readFileSync("/etc/apache2/ssl/onlinetestingserver.key", "utf8"),
     cert: fs.readFileSync("/etc/apache2/ssl/onlinetestingserver.crt", "utf8"),
     ca: fs.readFileSync("/etc/apache2/ssl/onlinetestingserver.ca"),
   };
 } else {
-  credentials = {
+  /* credentials = {
     key: fs.readFileSync("../certs/ssl.key"),
     cert: fs.readFileSync("../certs/ssl.crt"),
     ca: fs.readFileSync("../certs/ca-bundle"),
-  };
+  }; */
 }
 
 const connectDB = require("./config/db");

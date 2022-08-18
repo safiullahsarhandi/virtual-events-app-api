@@ -48,8 +48,8 @@ categorySchema.virtual('sub_categories',{
 
 categorySchema.virtual('sub_categories_count',{
   ref : 'Category',
-  localField : 'parent',
-  foreignField : '_id',
+  localField : '_id',
+  foreignField : 'parent',
   count : true,
 });
 
