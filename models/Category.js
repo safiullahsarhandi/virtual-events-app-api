@@ -23,7 +23,8 @@ const categorySchema = new Schema(
     },
     parent: {
       type: Schema.Types.ObjectId,
-      required: true,
+      default : null,
+      required: false,
     },
     /* sub_categories: [
       {
