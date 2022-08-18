@@ -87,6 +87,7 @@ exports.logs = async (req, res) => {
     const status_filter = req.query.status ? { status: req.query.status } : {};
     const logs = await Category.paginate(
       {
+        parent : null,
         ...dateFilter,
         ...searchParam,
         ...status_filter,
