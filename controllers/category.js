@@ -248,6 +248,7 @@ exports.allCategories = async (req,res)=> {
     const currentPage = req.query.page? req.query.page: 1;   
     const {docs,page, totalPages : total} = await Category.paginate({
       status: true,
+      parent : null,
     },{
       page : currentPage,
       limit, 
