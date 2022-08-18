@@ -32,9 +32,10 @@ exports.addCategory = async (req, res) => {
         status,
         description,
         category_image,
-        parent,
         // sub_categories,
       });
+      if(parent);
+          category.parent = parent;
 
       await category.save(opts);
 
