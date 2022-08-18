@@ -39,26 +39,22 @@ const categorySchema = new Schema(
 
 categorySchema.plugin(mongoosePaginate);
 
-categorySchema.virtual('sub_categories',{
-  ref : 'Category',
-  localField : 'parent',
-  foreignField : '_id',
-
-});
-
-categorySchema.virtual('sub_categories_count',{
+const subCategoryRelation = {
   ref : 'Category',
   localField : '_id',
   foreignField : 'parent',
-  count : true,
-});
 
-categorySchema.virtual('no_products',{
+};
+const productRelation = {
   ref : 'Product',
   localField : '_id',
   foreignField : 'category',
-  count : true,
-});
+};
+categorySchema.virtual('sub_categories',subCategoryRelation);
+
+categorySchema.virtual('sub_categories_count',{...subCategoryRelation,count : true});
+
+categorySchema.virtual('no_products',{...productRelation,count : true});
 
 
 
