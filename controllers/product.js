@@ -216,12 +216,16 @@ exports.getProductDetails = async (req, res) => {
 
 exports.getProducts = async (req,res)=> {
   
-  let {page,limit} = req.query;
+  let {page,limit,parent,sub_category} = req.query;
   page = page || 1;
   limit = limit || 10; 
   try {
-    
-    let {docs : data, pagingCounter : from, totalPages : total} = await Product.paginate({},
+    let categoryFilter = parent?{category : Types.ObjectId(parent)}:{};
+    let subCategoryFilter = sub_category?{sub_category : Types.ObjectId(sub_category)}:{};
+    let {docs : data, pagingCounter : from, totalPages : total} = await Product.paginate({
+      ...categoryFilter,
+      ...subCategoryFilter,
+    },
       {
       page,
       limit, 

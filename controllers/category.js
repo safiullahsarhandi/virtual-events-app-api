@@ -34,8 +34,11 @@ exports.addCategory = async (req, res) => {
         category_image,
         // sub_categories,
       });
-      if(parent)
+      if(parent){
           category.parent = parent;
+          category.status = true;
+
+      }
 
       await category.save(opts);
 
@@ -248,19 +251,29 @@ exports.allCategories = async (req,res)=> {
   try {
     const limit = req.query.entries? req.query.entries: 10;   
     const currentPage = req.query.page? req.query.page: 1;   
-    const {docs,page, totalPages : total} = await Category.paginate({
+    const parent = req.query.parent? req.query.parent: null;   
+    const pagination = req.query.pagination? req.query.pagination: null;
+    if(pagination != 'required'){
+      const {docs,page, totalPages : total} = await Category.paginate({
+        status: true,
+        parent,
+      },{
+        page : currentPage,
+        limit, 
+      });
+  
+      return res.code(200).send({
+        data : docs,
+        total,
+        currentPage : page,
+      });
+    }
+    const categories = await Category.find({
       status: true,
-      parent : null,
-    },{
-      page : currentPage,
-      limit, 
+      parent,
     });
 
-    await res.code(200).send({
-      data : docs,
-      total,
-      currentPage : page,
-    });
+    await res.code(200).send({categories});
   } catch (err) {
     res.code(500).send({
       message: err.toString(),
