@@ -9,7 +9,7 @@ const multer = require("fastify-multer");
 
 // SSL Configuration
 const isProduction = process.env.NODE_ENV != 'development';
-let credentials = {};
+let credentials = null;
 
 if (isProduction) {
   credentials = {
@@ -31,7 +31,7 @@ const fastify = require("fastify")({
   logger: {
     prettyPrint: true,
   },
-  // https: credentials,
+  https: credentials,
 });
 
 fastify.register(AutoLoad, {
