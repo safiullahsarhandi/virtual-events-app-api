@@ -138,7 +138,7 @@ exports.get = async (req, res) => {
     const category = await Category.findById(id).lean().populate({
       path: "sub_categories",
       select: "name",
-    });
+    }).populate('no_products');
 
     await res.code(201).send({
       category,
