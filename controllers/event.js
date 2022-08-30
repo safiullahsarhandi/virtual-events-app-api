@@ -183,7 +183,7 @@ exports.sendInvite = async (req,res)=> {
     let event;
     try {
       const {id} = req.params;
-      let {emails}= req.body;
+      let {emails}= req.body;      
       event = await Event.findById(id).populate('user'); 
       let message = await view('invitation.ejs',{event});
       emails.forEach(async function(email){
@@ -195,8 +195,8 @@ exports.sendInvite = async (req,res)=> {
           },{
             upsert : true,
           });
-          console.log(invite);
-      });
+        });
+      
       const mail = new Mail();
       mail
       .bcc(req.body.emails)
@@ -367,3 +367,19 @@ exports.updateEvent = async (req,res)=> {
     })
   }
 };
+
+exports.getInvites = async (req,res)=> {
+  try {
+    let {id : eventId} = req.params;
+    
+    let invites = await EventInvitee.find({
+      eventId 
+    });
+    return res.send({
+      invites
+    })
+  } catch (error) {
+    
+  }
+    
+} 

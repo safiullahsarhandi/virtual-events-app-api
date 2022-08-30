@@ -216,35 +216,74 @@ exports.getProductDetails = async (req, res) => {
 
 exports.getProducts = async (req,res)=> {
   
-  let {page,limit,parent,sub_category} = req.query;
+  let {page,limit,parent,sub_category,rating,"categories[]" : categories} = req.query;
   page = page || 1;
-  limit = limit || 10; 
+  limit = limit || 10;
+  rating = parseInt(rating);
   try {
+    // if there is only one category passed in api convert it to array 
+    categories = (typeof categories == 'string')?[categories]:categories;
+    
     let categoryFilter = parent?{category : Types.ObjectId(parent)}:{};
-    let subCategoryFilter = sub_category?{sub_category : Types.ObjectId(sub_category)}:{};
-    let {docs : data, pagingCounter : from, totalPages : total} = await Product.paginate({
+    if((categories instanceof Array && categories.length > 0)){
+
+      categories = categories.map((item)=> Types.ObjectId(item));
+    }
+    let subCategoriesFilter = (categories instanceof Array && categories.length > 0)?{sub_category : {$in : categories}}:(sub_category?{sub_category : {$in : [Types.ObjectId(sub_category)]}}:{});
+    let aggregation = Product.aggregate()
+    .match({
       ...categoryFilter,
-      ...subCategoryFilter,
-    },
-      {
+      ...subCategoriesFilter,
+    })
+    .lookup({
+      from : 'reviews',
+      localField : '_id', 
+      foreignField : 'product', 
+      as : 'reviews',
+    })
+    .lookup({
+      from : 'wishlists',
+      localField : '_id', 
+      foreignField : 'productId', 
+      as : 'wishlists',
+      pipeline : [
+        {
+          $match : {
+            userId : Types.ObjectId(req.user.userId)
+          },
+        }
+      ],
+    })
+    .addFields({
+      avgRatings : {$round : [{ $avg : '$reviews.rating'},2]},
+      isWishlist : { $convert : {input : {$size : '$wishlists'}, to : 'bool',onNull : false}}
+    })
+    
+    .project({
+      reviews : 0,
+      wishlists : 0,
+    });
+    if(rating >= 0){
+      aggregation = aggregation.match({
+        avgRatings : {
+          $gte : (rating || 0)
+        }
+      })
+    }
+    
+
+    let {docs : data, pagingCounter : from, totalPages : total} = await Product.aggregatePaginate(aggregation,{
       page,
       limit, 
-      populate : {
-        path : 'isWishlist',
-        model : 'Wishlist',
-        match : {
-          userId : Types.ObjectId(req.user.userId),
-        },
-      },
     });
-    
-    res.code(200).send({
-      data,
-      currentPage : page,
-      perPage : limit,
-      from,
-      total
-    });
+  
+  res.code(200).send({
+    data,
+    currentPage : page,
+    perPage : limit,
+    from,
+    total
+  });
 
   } catch (error) {
       console.log(error);

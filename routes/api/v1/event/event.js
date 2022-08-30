@@ -1,6 +1,6 @@
 "use strict";
 
-const { hostEvent, logs, get,sendInvite,getMyEvents,getEvent, updateEvent } = require("../../../../controllers/event");
+const { hostEvent, logs, get,sendInvite,getMyEvents,getEvent, updateEvent,getInvites } = require("../../../../controllers/event");
 
 const multer = require("fastify-multer");
 const { storage, fileFilter } = require("../../../../multer");
@@ -16,6 +16,7 @@ module.exports = async function (fastify, opts) {
   // 
   fastify.get("/my", { preHandler: [fastify.authenticate] }, getMyEvents);
   fastify.get("/:id", { preHandler: [fastify.authenticate] }, getEvent);
+  fastify.get("/:id/invites", { preHandler: [fastify.authenticate] }, getInvites);
   
   // @ADMIN ROUTES
   fastify.get(

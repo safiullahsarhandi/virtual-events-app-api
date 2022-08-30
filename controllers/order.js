@@ -11,6 +11,8 @@ const {
 } = require("../services/stripe");
 const OrderProduct = require("../models/OrderProduct");
 const { Types } = require("mongoose");
+const { getVariation } = require("../core/helpers");
+const OrderProductAttribute = require("../models/OrderProductAttribute");
 
 exports.createOrder = async (req, res) => {
   const session = await Order.startSession();
@@ -287,12 +289,24 @@ exports.placeOrder = async (req, res) => {
 
     await order.save(opts);
     products.forEach(item => (item.orderId = order._id));
-    await OrderProduct.insertMany(products);
+    let orderProducts = await OrderProduct.insertMany(products);
+    let productAttributes = [];
+    orderProducts.forEach((product)=> {
+      let item = { orderProductId : product._id};
+      let productParam =  products.find(value=>value.productId == product.productId);
+      productParam.attributes.forEach((attribute)=> {
+        item = {...item,attributeId : attribute.attributeId,valueId : attribute.value._id};
+        productAttributes.push(item);
+      });  
+    });
+    
     // calculating order total 
-    let total = products.reduce((prevValue, current) => (prevValue += (parseInt(current.price) * parseInt(current.qty))), 0);
+    let total = products.reduce((prevValue, current) => (prevValue += (getVariation(current.attributes,current.price) * parseInt(current.qty))), 0);
     // pay order amount 
     await order.pay(cardId, total);
-
+    // order
+    
+    await OrderProductAttribute.insertMany(productAttributes);
     await session.commitTransaction();
     session.endSession();
     res.code(201).send({
@@ -378,6 +392,23 @@ exports.getOrderDetail = async (req,res)=> {
         foreignField: 'orderId',
         as: 'products',
         pipeline : [
+          // get attribute which was selected while placing order
+          {
+            $lookup : {
+              from: 'orderproductattributes',
+              localField: '_id',
+              foreignField: 'orderProductId',
+              as: 'selected_attribute',
+            }
+          },
+          {
+            $addFields : {
+              attributeIds : '$selected_attribute.attributeId',
+              valueIds : '$selected_attribute.valueId',
+              
+            }
+          },
+          // get purchased productDetail from product collection
           {
             $lookup : {
               from: 'products',
@@ -388,7 +419,41 @@ exports.getOrderDetail = async (req,res)=> {
           },
           {
             $unwind : '$product'
+          },
+          {
+            $addFields : {
+              "product.attributes" : {
+                $map : {
+                  input : {
+                      $filter : {
+                        input : '$product.attributes',
+                        cond : {
+                          $in : ['$$this._id','$attributeIds'],
+                        },
+                      }
+                  },
+                  as : 'attribute',
+                  in : {
+                      label : '$$attribute.label',
+                      _id : '$$attribute._id',
+                      value : {
+                        $arrayElemAt : [{
+                          $filter : {
+                            input: "$$attribute.attribute_values",
+                            as : 'value',
+                            cond : {
+                              $in : ['$$value._id','$valueIds'],
+                            },
+                          }
+                        },0],
+                      },
+                      
+                  }
+                },
+              },
+            },
           }
+
         ],
       })
       // join country

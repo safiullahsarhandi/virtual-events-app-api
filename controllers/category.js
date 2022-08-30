@@ -285,8 +285,41 @@ exports.allCategories = async (req,res)=> {
 
 exports.storyCategories = async (req,res)=> {
   try {
-    const categories = await StoryCategory.find();
+    let {posts,order} =  req.query;
+    if(posts){
+      let categories = StoryCategory.aggregate()
+      .lookup({
+        from : 'stories',
+        localField : '_id',
+        foreignField : 'category',
+        as : 'stories',
+        pipeline : [{
+          $sample : {
+            size : 4,
+          }
+        }],
+      })
+      .addFields({
+        stories_count : {$size : '$stories'},
+      })
+      .match({
+        stories_count : {$ne : 0},
+      });
 
+      if(order && order == 'random'){
+        categories.sample(4);
+      }
+      categories = await categories.exec();
+      
+      
+      return res.send({
+        categories,
+      });
+    }
+    const categories = await StoryCategory.find({
+        
+    });
+      
     await res.code(200).send({
       categories,
     });
