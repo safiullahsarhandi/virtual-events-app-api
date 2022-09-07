@@ -31,3 +31,8 @@ exports.shuffle = (array)=> {
 
   return array;
 }
+
+
+exports.public_url = (url)=> {
+  return `${process.env.PUBLIC_URL}/${url}`
+};

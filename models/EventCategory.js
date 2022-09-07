@@ -12,6 +12,10 @@ const eventCategory = new Schema(
       type: Number,
       required: true,
     },
+    room_index : {
+      type: Number,
+      default : 4,
+    },
     inclueSubscription: {
       type: Boolean,
       required: true,

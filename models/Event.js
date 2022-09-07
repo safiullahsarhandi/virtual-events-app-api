@@ -47,6 +47,10 @@ const eventSchema = new Schema(
       required: true,
       enum: ["Pay Per Event", "Subscription"],
     },
+    room_data: {
+      type: Object,
+      default: null,
+    },
     repeat: {
       type: String,
       default: 'once',
@@ -55,17 +59,27 @@ const eventSchema = new Schema(
     upload_allowed: {
       type: Boolean,
       default: true,
+    },
+    status: {
+      type: String,
+      default: 'Pending',
+      enum : ['Pending','Completed'],
     },    
     
   },
   { timestamps: true,toJSON : {virtuals : true},toObject : {virtuals : true} }
 );
 
-eventSchema.virtual('invitees',{
+let inviteeRelation ={
   ref : 'EventInvitee',
   localField : '_id',
   foreignField : 'eventId',
   as : 'invitees'  
+};
+eventSchema.virtual('invitees',inviteeRelation);
+eventSchema.virtual('attendees_count',{
+  ...inviteeRelation,
+  count : true,
 });
 
 eventSchema.virtual('media',{
@@ -99,6 +113,12 @@ eventSchema.methods.savePaylogs = async function(amount,amount_type,charge_objec
       throw new Error(error.message);
   }
 };
+eventSchema.virtual('user_detail',{
+  ref : 'User', 
+  localField : 'user',
+  foreignField : '_id',
+  justOne : true,
+});
 
 eventSchema.index({name : 'text'});
 eventSchema.plugin(mongoosePaginate);

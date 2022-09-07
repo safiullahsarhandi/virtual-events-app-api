@@ -11,7 +11,7 @@ const {
 } = require("../services/stripe");
 const Stripe = require('stripe');
 const { Types } = require("mongoose");
-const { view } = require("../core/helpers");
+const { view, public_url } = require("../core/helpers.js");
 const EventInvitee = require("../models/EventInvitee");
 const { delete_file } = require("../services/delete_file");
 const File = require("../models/File");
@@ -88,7 +88,7 @@ exports.hostEvent = async (req, res) => {
         await session.abortTransaction();
         session.endSession();            
           return res.code(409).send({
-            message : error.toString(),
+            message : err.toString(),
             status : false,
           });
       res.code(500).send({
@@ -185,7 +185,10 @@ exports.sendInvite = async (req,res)=> {
       const {id} = req.params;
       let {emails}= req.body;      
       event = await Event.findById(id).populate('user'); 
-      let message = await view('invitation.ejs',{event});
+      let message = await view('invitation.ejs',{
+        event,
+        event_url : public_url(`events/${id}/invite`),
+      });
       emails.forEach(async function(email){
           let invite = await EventInvitee.findOneAndUpdate({
             eventId : Types.ObjectId(id),
@@ -202,7 +205,8 @@ exports.sendInvite = async (req,res)=> {
       .bcc(req.body.emails)
       .subject(`Event: ${event.name} Invitation`)
       .message(message)
-      .send()
+      .send();
+
       res.code(201).send({
         message : 'invitiation sent',
         status : true,
@@ -211,6 +215,7 @@ exports.sendInvite = async (req,res)=> {
       console.log(error);
         res.code(404).send({
           message : 'invalid event',
+          meta : error.toString(),
           status : false,
         });
     }
@@ -224,9 +229,7 @@ exports.getMyEvents = async (req,res)=> {
   let dateFilter = type?
     { $lt : (date?new Date(date):new Date())}
     :
-    {
-      date : { $gte : (date?new Date(date):new Date()) } 
-    };
+    { $gte : (date?new Date(date):new Date()) };
     
   let eventTypeFilter = event_type? {event_category : Types.ObjectId(event_type)}: {};
     const searchParam = req.query.search
@@ -318,7 +321,7 @@ exports.getMyEvents = async (req,res)=> {
 
 exports.getEvent = async (req,res)=>{
   try {
-    let event = await Event.findById(req.params.id).populate('event_category invitees media');
+    let event = await Event.findById(req.params.id).populate('event_category invitees media user_detail attendees_count');
     res.send({event});
   } catch (error) {
     res.code(404).send({
@@ -382,4 +385,162 @@ exports.getInvites = async (req,res)=> {
     
   }
     
-} 
+}
+
+exports.getAttendees = async (req,res)=> {
+  try {
+    let {id : eventId} = req.params;
+    
+    let invites = await EventInvitee.find({
+      eventId 
+    }).where('userId',{$ne : null}).populate('user');
+    return res.send({
+      invites
+    })
+  } catch (error) {
+    
+  }
+    
+}
+
+exports.updateRoom = async (req,res)=> {
+    try {
+      let {id} = req.params; 
+      let event = await Event.findById(id);
+      event.room_data = req.body.room_data;
+      await event.save();
+      console.log(event);
+      res.code(200).send({
+        message : 'virtual room updated',
+        status : true,
+      });
+    } catch (error) {
+      console.log(error)
+      res.code(500).send({
+        message : 'something went wrong',
+        meta : error.toString(),
+        status : false,
+      });
+    }
+};
+
+exports.deleteInvitee = async (req,res)=> {
+  try {
+    let {id} = req.params;
+    
+    await EventInvitee.findByIdAndDelete(id);
+    return res.send({
+      status : true,
+      message : 'Invitee removed',
+    });
+  } catch (error) {
+      console.log(error);
+      res.code(500).send({
+        message : 'something went wrong.',
+        meta : error.toString(),
+        status : false,
+      });
+  }
+    
+}
+
+
+exports.checkInvitee = async (req,res)=> {
+  try {
+    let {id} = req.params;
+    let user = await User.findById(req.user.userId).select('_id name').populate('auth','email');
+    let invite = await EventInvitee.findOne({
+      eventId : Types.ObjectId(id),
+      email : user.auth.email,
+    });
+    if(!invite){
+      throw new Error('access forbidden');
+    }
+    return res.send({
+      status : true,
+      invite,
+      message : 'invitation matched acess allowed',
+    });
+  } catch (error) {
+      console.log(error);
+      res.code(500).send({
+        message : error.message,
+        // meta : error.toString(),
+        status : false,
+      });
+  }
+    
+}
+
+
+exports.changeInviteStatus = async (req,res)=> {
+    try {
+      let {id,status} = req.params;
+      let user = await User.findById(req.user.userId).select('_id name').populate('auth','email');
+      let invite = await EventInvitee.findOne({
+        eventId : Types.ObjectId(id),
+        email : user.auth.email 
+      });
+      if(!invite){
+        throw new Error('access forbidden');
+      }
+      let message = 'Invitation accepted';
+      invite.status = 'Accepted';
+      invite.userId = user._id;
+      
+      if(status == 'Declined'){
+        invite.status = 'Declined';        
+        message = 'Invitation declined';
+      }
+
+      await invite.save();
+
+      return res.code(200).send({
+        message,
+        status : true,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.code(500).send({
+        message : error.message,
+        status : false,
+      });
+    }
+};
+
+
+exports.endEvent = async (req,res)=> {
+  try {
+    let {id} = req.params; 
+    let event =await Event.findById(id);
+    if(event.user == req.user.userId){
+      
+      event.status = 'Completed';
+      await event.save();
+      await EventInvitee.updateMany({
+        eventId : event._id,
+      },{
+        status : 'Ended',
+      },{
+        upsert : true,
+      });      
+    }else{        
+        await EventInvitee.updateOne({
+          eventId : event._id,
+          userId : req.user.userId,  
+        },{
+          status : 'Ended',
+        });       
+    }
+
+    res.code(200).send({
+      message : 'event ended',
+      status : true,
+    });   
+  } catch (error) {
+      res.code(500).send({
+        message : error.message,
+        status : false,
+      });
+  }
+};

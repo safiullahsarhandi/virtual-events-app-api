@@ -73,6 +73,7 @@ exports.mySubscriptions = async (req,res)=> {
       ],
     }:{};
     perPage = perPage || 10;
+    
     const {docs : data, totalPages : total,pagingCounter : from} = await Subscription.paginate({
       ...packageFilter,
       ...searchFilter,
@@ -81,6 +82,7 @@ exports.mySubscriptions = async (req,res)=> {
       limit : perPage,
       populate : ['package'],
     });
+
     return res.send({
       data,
       currentPage : page,
